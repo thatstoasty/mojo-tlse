@@ -107,6 +107,7 @@ fn send_pending(socket: Socket, context: UnsafePointer[TLSContext]) raises -> In
     tls_buffer_clear(context)
     return send_res
 
+
 fn main() raises:
     var host = "www.google.com"
     var port: UInt16 = 443
@@ -125,13 +126,13 @@ fn main() raises:
 
         var read_size: c_int
         var sent = 0
-        var buffer = List[Byte, True](capacity=0xFFFF)
+        var buffer = List[Byte, True](capacity=65535)
         while socket.receive(buffer) > 0:
             print("")
             print("bytes received:", buffer.size)
             var consume_stream_res = tls_consume_stream(context, buffer.unsafe_ptr(), len(buffer), validate_certificate)
             print("tls_consume_stream:", consume_stream_res)
-            if consume_stream_res < 0:
+            if consume_stream_res <= 0:
                 break
             print("from initial send pending", send_pending(socket, context))
 
@@ -153,10 +154,8 @@ fn main() raises:
                         print("bytes sent via pending", send_pending(socket, context))
                     sent = 1
                 
-                var read_buffer = List[Byte, True](capacity=0xFFFF)
+                var read_buffer = List[Byte, True](capacity=65535)
                 var bytes_read = tls_read(context, read_buffer.unsafe_ptr(), read_buffer.capacity - 1)
                 print("bytes read from tls read:", bytes_read)
                 if (bytes_read > 0):
                     print(StringSlice(unsafe_from_utf8=read_buffer))
-
-

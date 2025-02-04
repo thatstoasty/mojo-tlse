@@ -164,6 +164,44 @@ fn tls_write(
         fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_uint) -> c_int
     ]("tls_write")(context, data, len)
 
+
+fn tls_certificate_is_valid(
+    cert: UnsafePointer[TLSCertificate]
+) -> c_int:
+    """int tls_certificate_is_valid(struct TLSCertificate *cert);"""
+    return _tlse.get_function[
+        fn (UnsafePointer[TLSCertificate]) -> c_int
+    ]("tls_certificate_is_valid")(cert)
+
+
+fn tls_certificate_chain_is_valid(
+    certificates: UnsafePointer[UnsafePointer[TLSCertificate]],
+    len: c_int,
+) -> c_int:
+    """int tls_certificate_chain_is_valid(struct TLSCertificate **certificates, int len);"""
+    return _tlse.get_function[
+        fn (UnsafePointer[UnsafePointer[TLSCertificate]], c_int) -> c_int
+    ]("tls_certificate_chain_is_valid")(certificates, len)
+
+
+fn tls_certificate_valid_subject(
+    cert: UnsafePointer[TLSCertificate],
+    subject: UnsafePointer[c_char],
+) -> c_int:
+    """int tls_certificate_valid_subject(struct TLSCertificate *cert, const char *subject);"""
+    return _tlse.get_function[
+        fn (UnsafePointer[TLSCertificate], UnsafePointer[c_char]) -> c_int
+    ]("tls_certificate_valid_subject")(cert, subject)
+
+
+fn tls_sni(
+    context: UnsafePointer[TLSContext]
+) -> UnsafePointer[c_char]:
+    """const char *tls_sni(struct TLSContext *context);"""
+    return _tlse.get_function[
+        fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char]
+    ]("tls_sni")(context)
+
 # tls_make_exportable
 # tls_sni_set
 # tls_client_connect

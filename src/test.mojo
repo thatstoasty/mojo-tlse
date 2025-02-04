@@ -1,7 +1,29 @@
 from lightbug_http.address import TCPAddr
 from lightbug_http.socket import Socket
 from lightbug_http.connection import create_connection
-from mojo_tlse.bindings import c_int, c_char, c_uchar, TLSContext, TLSCertificate, _tlse, tls_create_context, tls_make_exportable, tls_sni_set, tls_client_connect, tls_get_write_buffer, tls_buffer_clear, tls_established, tls_consume_stream, tls_make_ktls, tls_write, tls_read
+from mojo_tlse.bindings import (
+    c_int,
+    c_char,
+    c_uchar,
+    TLSContext,
+    TLSCertificate,
+    _tlse,
+    tls_create_context,
+    tls_make_exportable,
+    tls_sni_set,
+    tls_client_connect,
+    tls_get_write_buffer,
+    tls_buffer_clear,
+    tls_established,
+    tls_consume_stream,
+    tls_make_ktls,
+    tls_write,
+    tls_read,
+    tls_certificate_is_valid,
+    tls_certificate_chain_is_valid,
+    tls_certificate_valid_subject,
+    tls_sni
+)
 from memory import UnsafePointer, Span
 from utils import StringSlice
 
@@ -57,28 +79,44 @@ from utils import StringSlice
 #     return no_error;
 # }
 
-# Convert the above C function to Mojo
-fn validate_certificate(context: UnsafePointer[TLSContext], certificate_chain: UnsafePointer[UnsafePointer[TLSCertificate]], len: c_int) -> c_int:
-    # var err: c_int
-    # if certificate_chain:
-    #     for i in 0..len:
-    #         var certificate = certificate_chain[i]
-    #         # check validity date
-    #         err = tls_certificate_is_valid(certificate)
-    #         if err:
-    #             return err
-    #         # check certificate in certificate->bytes of length certificate->len
-    #         # the certificate is in ASN.1 DER format
-    # # check if chain is valid
-    # err = tls_certificate_chain_is_valid(certificate_chain, len)
-    # if err:
-    #     return err
 
-    # var sni = tls_sni(context)
-    # if len > 0 and sni:
-    #     err = tls_certificate_valid_subject(certificate_chain[0], sni)
-    #     if err:
-    #         return err
+# Convert the above C function to Mojo
+fn validate_certificate(
+    context: UnsafePointer[TLSContext], certificate_chain: UnsafePointer[UnsafePointer[TLSCertificate]], len: c_int
+) -> c_int:
+    # if (certificate_chain) {
+    #     for (i = 0; i < len; i++) {
+    #         struct TLSCertificate *certificate = certificate_chain[i];
+    #         // check validity date
+    #         err = tls_certificate_is_valid(certificate);
+    #         if (err)
+    #             return err;
+    #         // check certificate in certificate->bytes of length certificate->len
+    #         // the certificate is in ASN.1 DER format
+    #     }
+    # }
+    if certificate_chain:
+        for i in range(len):
+            var certificate = certificate_chain[i]
+            # check validity date
+            var err = tls_certificate_is_valid(certificate)
+            if err < 0:
+                print(err)
+                return err
+            # check certificate in certificate->bytes of length certificate->len
+            # the certificate is in ASN.1 DER format
+    # check if chain is valid
+    var err = tls_certificate_chain_is_valid(certificate_chain, len)
+    if err < 0:
+        print(err)
+        return err
+
+    var sni = tls_sni(context)
+    if len > 0 and sni:
+        err = tls_certificate_valid_subject(certificate_chain[0], sni)
+        if err < 0:
+            print(err)
+            return err
 
     print("Certificate OK")
 
@@ -96,7 +134,9 @@ fn send_pending(socket: Socket, context: UnsafePointer[TLSContext]) raises -> In
     var send_res = 0
     while out_buffer and out_buffer_len > 0:
         var len: UInt = int(out_buffer_len)
-        var msg: Span[Byte, origin=__origin_of(out_buffer)] = Span[Byte, origin=__origin_of(out_buffer)] (ptr=out_buffer, length=len)
+        var msg: Span[Byte, origin = __origin_of(out_buffer)] = Span[Byte, origin = __origin_of(out_buffer)](
+            ptr=out_buffer, length=len
+        )
 
         var res = socket.send(buffer=msg)
         if res <= 0:
@@ -138,24 +178,26 @@ fn main() raises:
 
             var tls_est = tls_established(context)
             print("tls_est", tls_est)
-            if (tls_est == 1):
+            if tls_est == 1:
                 if sent == 0:
                     var msg = "GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n"
                     # try kTLS (kernel TLS implementation in linux >= 4.13)
                     # note that you can use send on a ktls socket
                     # recv must be handled by TLSe
-                    if not tls_make_ktls(context, socket.fd):
-                        # call send as on regular TCP sockets
-                        # TLS record layer is handled by the kernel
-                        print("bytes sent via tcp", socket.send(msg.as_bytes()))
-                    else:
+                    var make_tls = tls_make_ktls(context, socket.fd)
+                    if make_tls >= 0:
                         print("sending request:", msg)
                         print("bytes sent via tls write", tls_write(context, msg.unsafe_ptr(), msg.byte_length()))
                         print("bytes sent via pending", send_pending(socket, context))
+                    else:
+                        # call send as on regular TCP sockets
+                        # TLS record layer is handled by the kernel
+                        print("bytes sent via tcp", socket.send(msg.as_bytes()))
+
                     sent = 1
-                
+
                 var read_buffer = List[Byte, True](capacity=65535)
-                var bytes_read = tls_read(context, read_buffer.unsafe_ptr(), read_buffer.capacity - 1)
+                var bytes_read = tls_read(context, read_buffer.unsafe_ptr(), read_buffer.capacity)
                 print("bytes read from tls read:", bytes_read)
-                if (bytes_read > 0):
+                if bytes_read > 0:
                     print(StringSlice(unsafe_from_utf8=read_buffer))

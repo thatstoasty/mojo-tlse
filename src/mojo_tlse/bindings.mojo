@@ -26,25 +26,16 @@ alias uintptr_t = UInt64
 
 @value
 struct TLSContext:
-    """Read only, the TLSContext struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
+    """Read only, the `TLSContext` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
     Pointers to `TLSContext` should never be dereferenced.
     """
     pass
 
 
-# @value
-# struct TLSContext:
-#     """Read only, the TLSContext struct is defined in C and is opaque to Mojo.
-
-#     Pointers to `TLSContext` should never be dereferenced.
-#     """
-#     var _handle: UnsafePointer[TLSContext]
-
-
 @value
 struct TLSCertificate:
-    """Read only, the TLSCertificate struct is defined in C and is opaque to Mojo.
+    """Read only, the `TLSCertificate` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
     Pointers to `TLSCertificate` should never be dereferenced.
     """
@@ -53,7 +44,7 @@ struct TLSCertificate:
 
 
 struct TLSPacket:
-    """Read only, the TLSPacket struct is defined in C and is opaque to Mojo.
+    """Read only, the `TLSPacket` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
     Pointers to `TLSPacket` should never be dereferenced.
     """
@@ -62,7 +53,7 @@ struct TLSPacket:
 
 
 struct ECCCurveParameters:
-    """Read only, the ECCCurveParameters struct is defined in C and is opaque to Mojo.
+    """Read only, the `ECCCurveParameters` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
     Pointers to `ECCCurveParameters` should never be dereferenced.
     """
@@ -71,7 +62,7 @@ struct ECCCurveParameters:
 
 
 struct TLSRTCPeerConnection:
-    """Read only, the TLSRTCPeerConnection struct is defined in C and is opaque to Mojo.
+    """Read only, the `TLSRTCPeerConnection` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
     Pointers to `TLSRTCPeerConnection` should never be dereferenced.
     """

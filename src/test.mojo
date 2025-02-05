@@ -1,14 +1,8 @@
 from lightbug_http.address import TCPAddr
 from lightbug_http.socket import Socket
 from lightbug_http.connection import create_connection
-from mojo_tlse.bindings import (
-    c_int,
-    c_char,
-    c_uchar,
-    TLSContext,
-    TLSCertificate,
-    TLSE
-)
+from mojo_tlse.bindings import c_int, c_char, c_uchar, TLSContext, TLSCertificate, TLSE
+from mojo_tlse.enums import Result
 from memory import UnsafePointer, Span
 from utils import StringSlice
 
@@ -43,7 +37,7 @@ fn validate_certificate(
 
     print("Certificate OK")
 
-    return 255
+    return Result.NO_ERROR.value
 
 
 fn send_pending(tlse: TLSE, socket: Socket, context: UnsafePointer[TLSContext]) raises -> Int:
@@ -107,7 +101,10 @@ fn main() raises:
                         var make_tls = tlse.tls_make_ktls(context, socket.fd)
                         if make_tls != 0:
                             print("sending request:", msg)
-                            print("bytes sent via tls write:", tlse.tls_write(context, msg.unsafe_ptr(), msg.byte_length()))
+                            print(
+                                "bytes sent via tls write:",
+                                tlse.tls_write(context, msg.unsafe_ptr(), msg.byte_length()),
+                            )
                             print("bytes sent via pending:", send_pending(tlse, socket, context))
                         else:
                             # call send as on regular TCP sockets
@@ -119,6 +116,7 @@ fn main() raises:
                     var read_buffer = List[Byte, True](capacity=65535)
                     var bytes_read = tlse.tls_read(context, read_buffer.unsafe_ptr(), read_buffer.capacity)
                     read_buffer.size += int(bytes_read)
+                    print("bytes read:", bytes_read)
                     if bytes_read > 0:
                         print(StringSlice(unsafe_from_utf8=read_buffer))
             finally:

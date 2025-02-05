@@ -22,7 +22,8 @@ from mojo_tlse.bindings import (
     tls_certificate_is_valid,
     tls_certificate_chain_is_valid,
     tls_certificate_valid_subject,
-    tls_sni
+    tls_sni,
+    tls_choose_cipher
 )
 from memory import UnsafePointer, Span
 from utils import StringSlice
@@ -134,7 +135,7 @@ fn send_pending(socket: Socket, context: UnsafePointer[TLSContext]) raises -> In
     var send_res = 0
     while out_buffer and out_buffer_len > 0:
         var len: UInt = int(out_buffer_len)
-        var msg: Span[Byte, origin = __origin_of(out_buffer)] = Span[Byte, origin = __origin_of(out_buffer)](
+        var msg = Span[Byte, origin = __origin_of(out_buffer)](
             ptr=out_buffer, length=len
         )
 
@@ -149,7 +150,7 @@ fn send_pending(socket: Socket, context: UnsafePointer[TLSContext]) raises -> In
 
 
 fn main() raises:
-    var host = "www.google.com"
+    var host = "www.example.com"
     var port: UInt16 = 443
 
     with Socket[TCPAddr]() as socket:
@@ -159,8 +160,10 @@ fn main() raises:
         # Send 10 test messages
         socket.connect(host, port)
         var context = tls_create_context(0, 0x0304)
-        tls_make_exportable(context, 1)
+        # tls_make_exportable(context, 1)
         _ = tls_sni_set(context, host.unsafe_ptr())
+        # alias cipher = "TLS_AES_128_GCM_SHA256"
+        # print("choose cipher", tls_choose_cipher(context, cipher.unsafe_ptr(), cipher.byte_length(), UnsafePointer[Int32]()))
         _ = tls_client_connect(context)
         _ = send_pending(socket, context)
 
@@ -180,12 +183,12 @@ fn main() raises:
             print("tls_est", tls_est)
             if tls_est == 1:
                 if sent == 0:
-                    var msg = "GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n"
+                    var msg = "GET / HTTP/1.1\r\nConnection: close\r\n\r\n"
                     # try kTLS (kernel TLS implementation in linux >= 4.13)
                     # note that you can use send on a ktls socket
                     # recv must be handled by TLSe
                     var make_tls = tls_make_ktls(context, socket.fd)
-                    if make_tls >= 0:
+                    if make_tls != 0:
                         print("sending request:", msg)
                         print("bytes sent via tls write", tls_write(context, msg.unsafe_ptr(), msg.byte_length()))
                         print("bytes sent via pending", send_pending(socket, context))

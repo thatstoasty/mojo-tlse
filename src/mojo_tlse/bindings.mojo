@@ -202,6 +202,18 @@ fn tls_sni(
         fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char]
     ]("tls_sni")(context)
 
+
+fn tls_choose_cipher(
+    context: UnsafePointer[TLSContext],
+    buf: UnsafePointer[c_uchar],
+    buf_len: c_int,
+    scsv_set: UnsafePointer[c_int],
+) -> c_int:
+    """int tls_choose_cipher(struct TLSContext *context, const unsigned char *buf, int buf_len, int *scsv_set);"""
+    return _tlse.get_function[
+        fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int, UnsafePointer[c_int]) -> c_int
+    ]("tls_choose_cipher")(context, buf, buf_len, scsv_set)
+
 # tls_make_exportable
 # tls_sni_set
 # tls_client_connect

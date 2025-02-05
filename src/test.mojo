@@ -150,57 +150,49 @@ fn send_pending(socket: Socket, context: UnsafePointer[TLSContext]) raises -> In
 
 
 fn main() raises:
-    var host = "www.example.com"
+    var host = "google.com"
     var port: UInt16 = 443
 
     with Socket[TCPAddr]() as socket:
         # Bind client to port 8082
         # socket.bind("127.0.0.1", 8082)
 
-        # Send 10 test messages
         socket.connect(host, port)
         var context = tls_create_context(0, 0x0304)
-        # tls_make_exportable(context, 1)
+        tls_make_exportable(context, 1)
         _ = tls_sni_set(context, host.unsafe_ptr())
-        # alias cipher = "TLS_AES_128_GCM_SHA256"
-        # print("choose cipher", tls_choose_cipher(context, cipher.unsafe_ptr(), cipher.byte_length(), UnsafePointer[Int32]()))
         _ = tls_client_connect(context)
         _ = send_pending(socket, context)
 
-        var read_size: c_int
         var sent = 0
         var buffer = List[Byte, True](capacity=65535)
         while socket.receive(buffer) > 0:
-            print("")
-            print("bytes received:", buffer.size)
-            var consume_stream_res = tls_consume_stream(context, buffer.unsafe_ptr(), len(buffer), validate_certificate)
-            print("tls_consume_stream:", consume_stream_res)
-            if consume_stream_res <= 0:
-                break
-            print("from initial send pending", send_pending(socket, context))
+            try:
+                if tls_consume_stream(context, buffer.unsafe_ptr(), len(buffer), validate_certificate) <= 0:
+                    break
 
-            var tls_est = tls_established(context)
-            print("tls_est", tls_est)
-            if tls_est == 1:
-                if sent == 0:
-                    var msg = "GET / HTTP/1.1\r\nConnection: close\r\n\r\n"
-                    # try kTLS (kernel TLS implementation in linux >= 4.13)
-                    # note that you can use send on a ktls socket
-                    # recv must be handled by TLSe
-                    var make_tls = tls_make_ktls(context, socket.fd)
-                    if make_tls != 0:
-                        print("sending request:", msg)
-                        print("bytes sent via tls write", tls_write(context, msg.unsafe_ptr(), msg.byte_length()))
-                        print("bytes sent via pending", send_pending(socket, context))
-                    else:
-                        # call send as on regular TCP sockets
-                        # TLS record layer is handled by the kernel
-                        print("bytes sent via tcp", socket.send(msg.as_bytes()))
+                if tls_established(context) == 1:
+                    if sent == 0:
+                        var msg = "GET / HTTP/1.1\r\nConnection: close\r\n\r\n"
+                        # try kTLS (kernel TLS implementation in linux >= 4.13)
+                        # note that you can use send on a ktls socket
+                        # recv must be handled by TLSe
+                        var make_tls = tls_make_ktls(context, socket.fd)
+                        if make_tls != 0:
+                            print("sending request:", msg)
+                            print("bytes sent via tls write:", tls_write(context, msg.unsafe_ptr(), msg.byte_length()))
+                            print("bytes sent via pending:", send_pending(socket, context))
+                        else:
+                            # call send as on regular TCP sockets
+                            # TLS record layer is handled by the kernel
+                            print("bytes sent via tcp", socket.send(msg.as_bytes()))
 
-                    sent = 1
+                        sent = 1
 
-                var read_buffer = List[Byte, True](capacity=65535)
-                var bytes_read = tls_read(context, read_buffer.unsafe_ptr(), read_buffer.capacity)
-                print("bytes read from tls read:", bytes_read)
-                if bytes_read > 0:
-                    print(StringSlice(unsafe_from_utf8=read_buffer))
+                    var read_buffer = List[Byte, True](capacity=65535)
+                    var bytes_read = tls_read(context, read_buffer.unsafe_ptr(), read_buffer.capacity)
+                    read_buffer.size += int(bytes_read)
+                    if bytes_read > 0:
+                        print(StringSlice(unsafe_from_utf8=read_buffer))
+            finally:
+                buffer.clear()

@@ -1,3 +1,5 @@
+import os
+import pathlib
 from sys import ffi
 from sys.ffi import OpaquePointer
 from memory import UnsafePointer
@@ -77,8 +79,13 @@ alias TLSPeerConnectionWriteFn = fn (UnsafePointer[TLSRTCPeerConnection], Unsafe
 struct TLSE:
     var _handle: ffi.DLHandle
 
-    fn __init__(out self):
-        self._handle = ffi.DLHandle("/Users/mikhailtavarez/Git/mojo/mojo-tlse/external/libtlse.dylib", ffi.RTLD.LAZY)
+    fn __init__(out self) raises:
+        var path = os.getenv("TLSE_LIB_PATH")
+
+        # If its not explicitly set, then assume the program is running from the root of the project.
+        if path == "":
+            path = str(pathlib.cwd() / ".magic/envs/default/lib/libtlse.dylib")
+        self._handle = ffi.DLHandle(path, ffi.RTLD.LAZY)
 
     fn tls_create_context(
         self,

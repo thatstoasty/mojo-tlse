@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/prefix-dev/recipe-format/main/schema.json
+
+context:
+  version: "13.4.2" # this should be changed
+
+package:
+  name: "mojo-tlse"
+  version: 0.1.2
+
+source:
+  - path: .
+  - path: ../LICENSE
+
+build:
+  script:
+    - mkdir -p ${PREFIX}/lib/mojo
+    - git clone --depth=1 git@github.com:eduardsui/tlse.git
+    - cd tlse
+    - gcc -c tlse.c -fPIC -DTLS_AMALGAMATION && gcc -dynamiclib -o ${PREFIX}/lib/libtlse.dylib tlse.o
+    - cd .. && rm -R tlse
+
+    - magic run mojo package mojo_tlse -o ${PREFIX}/lib/mojo/mojo_tlse.mojopkg
+    - ls -la ${PREFIX}/lib/mojo
+
+about:
+  homepage: https://github.com/thatstoasty/mojo-tlse
+  license: MIT
+  license_file: LICENSE
+  summary: Mojo TLSE bindings.
+  repository: https://github.com/thatstoasty/mojo-tlse

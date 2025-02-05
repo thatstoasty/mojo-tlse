@@ -11,34 +11,37 @@ from utils import StringSlice
 fn validate_certificate(
     context: UnsafePointer[TLSContext], certificate_chain: UnsafePointer[UnsafePointer[TLSCertificate]], len: c_int
 ) -> c_int:
-    var tlse = TLSE()
-    if certificate_chain:
-        for i in range(len):
-            var certificate = certificate_chain[i]
-            # check validity date
-            var err = tlse.tls_certificate_is_valid(certificate)
-            if err < 0:
-                print(err)
-                return err
-            # check certificate in certificate->bytes of length certificate->len
-            # the certificate is in ASN.1 DER format
-    # check if chain is valid
-    var err = tlse.tls_certificate_chain_is_valid(certificate_chain, len)
-    if err < 0:
-        print(err)
-        return err
+    try:
+        var tlse = TLSE()
 
-    var sni = tlse.tls_sni(context)
-    if len > 0 and sni:
-        err = tlse.tls_certificate_valid_subject(certificate_chain[0], sni)
+        if certificate_chain:
+            for i in range(len):
+                var certificate = certificate_chain[i]
+                # check validity date
+                var err = tlse.tls_certificate_is_valid(certificate)
+                if err < 0:
+                    print(err)
+                    return err
+                # check certificate in certificate->bytes of length certificate->len
+                # the certificate is in ASN.1 DER format
+        # check if chain is valid
+        var err = tlse.tls_certificate_chain_is_valid(certificate_chain, len)
         if err < 0:
             print(err)
             return err
 
-    print("Certificate OK")
+        var sni = tlse.tls_sni(context)
+        if len > 0 and sni:
+            err = tlse.tls_certificate_valid_subject(certificate_chain[0], sni)
+            if err < 0:
+                print(err)
+                return err
 
-    return Result.NO_ERROR.value
+        print("Certificate OK")
 
+        return Result.NO_ERROR.value
+    except:
+        return Result.NO_ERROR.value
 
 fn send_pending(tlse: TLSE, socket: Socket, context: UnsafePointer[TLSContext]) raises -> Int:
     var out_buffer_len: UInt32 = 0

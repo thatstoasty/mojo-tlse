@@ -2,8 +2,7 @@
 authors = ["Mikhail Tavarez <miktavarez@gmail.com>"]
 channels = [
     "conda-forge",
-    "https://conda.modular.com/max",
-    "https://repo.prefix.dev/mojo-community"
+    "https://conda.modular.com/max"
 ]
 description = "Add a short description here"
 name = "mojo-tlse"
@@ -17,5 +16,4 @@ build = "rattler-build build -r src -c https://conda.modular.com/max -c conda-fo
 publish = { cmd = "bash scripts/publish.sh", env = { PREFIX_API_KEY = "$PREFIX_API_KEY" } }
 
 [dependencies]
-max = "*"
-lightbug_http = "==0.1.10"
+max = "==24.6.0"

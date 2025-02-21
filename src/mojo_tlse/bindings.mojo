@@ -84,8 +84,11 @@ struct TLSE:
 
         # If its not explicitly set, then assume the program is running from the root of the project.
         if path == "":
-            path = str(pathlib.cwd() / ".magic/envs/default/lib/libtlse.dylib")
+            path = String(pathlib.cwd() / ".magic/envs/default/lib/libtlse.dylib")
         self._handle = ffi.DLHandle(path, ffi.RTLD.LAZY)
+    
+    fn __moveinit__(out self, owned other: TLSE):
+        self._handle = other._handle
 
     fn tls_create_context(
         self,

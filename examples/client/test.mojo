@@ -7,7 +7,6 @@ from memory import UnsafePointer, Span
 from utils import StringSlice
 
 
-# Convert the above C function to Mojo
 fn validate_certificate(
     context: UnsafePointer[TLSContext], certificate_chain: UnsafePointer[UnsafePointer[TLSCertificate]], len: c_int
 ) -> c_int:
@@ -43,13 +42,14 @@ fn validate_certificate(
     except:
         return Result.NO_ERROR.value
 
+
 fn send_pending(tlse: TLSE, socket: Socket, context: UnsafePointer[TLSContext]) raises -> Int:
     var out_buffer_len: UInt32 = 0
     var out_buffer = tlse.tls_get_write_buffer(context, UnsafePointer.address_of(out_buffer_len))
     var out_buffer_index: UInt32 = 0
     var send_res = 0
     while out_buffer and out_buffer_len > 0:
-        var len: UInt = int(out_buffer_len)
+        var len: UInt = Int(out_buffer_len)
         var msg = Span[Byte, origin = __origin_of(out_buffer)](ptr=out_buffer, length=len)
 
         var res = socket.send(buffer=msg)
@@ -86,7 +86,7 @@ fn main() raises:
                 _ = socket.receive(buffer)
             except e:
                 # If EOF is reached, the connection is closed and we can break out of the loop.
-                if str(e) == "EOF":
+                if String(e) == "EOF":
                     break
                 else:
                     raise e
@@ -118,7 +118,7 @@ fn main() raises:
 
                     var read_buffer = List[Byte, True](capacity=65535)
                     var bytes_read = tlse.tls_read(context, read_buffer.unsafe_ptr(), read_buffer.capacity)
-                    read_buffer.size += int(bytes_read)
+                    read_buffer.size += Int(bytes_read)
                     print("bytes read:", bytes_read)
                     if bytes_read > 0:
                         print(StringSlice(unsafe_from_utf8=read_buffer))

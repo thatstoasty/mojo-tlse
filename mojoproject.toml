@@ -8,6 +8,10 @@ description = "Mojo TLSE Bindings."
 name = "mojo-tlse"
 platforms = ["osx-arm64", "linux-64"]
 version = "25.1.0"
+license = "MIT"
+license-file = "LICENSE"
+homepage = "https://github.com/thatstoasty/mojo-tlse"
+repository = "https://github.com/thatstoasty/mojo-tlse"
 
 [tasks]
 template = "python scripts/util.py templater"

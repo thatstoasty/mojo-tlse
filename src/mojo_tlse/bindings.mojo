@@ -73,6 +73,7 @@ struct TLSRTCPeerConnection:
 
 
 alias TLSValidationFn = fn (UnsafePointer[TLSContext], UnsafePointer[UnsafePointer[TLSCertificate]], c_int) -> c_int
+"""TLS validation function signature."""
 alias TLSPeerConnectionWriteFn = fn (UnsafePointer[TLSRTCPeerConnection], UnsafePointer[c_uchar], c_int) -> c_int
 
 

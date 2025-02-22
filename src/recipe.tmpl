@@ -15,15 +15,12 @@ source:
 build:
   script:
     - mkdir -p ${PREFIX}/lib/mojo
-    - ls -la
     - if [[ ! -d tlse ]]; then git clone --depth=1 git@github.com:eduardsui/tlse.git; fi
     - cd tlse
-    - ls -la
     - gcc -c tlse.c -fPIC -DTLS_AMALGAMATION 
-    - ls -la 
-    - gcc -shared -o ${PREFIX}/lib/libtlse.dylib tlse.o
+    - if [[ $TARGET_PLATFORM == "linux-64" ]]; then gcc -shared -o ${PREFIX}/lib/libtlse.dylib tlse.o; else gcc -dynamiclib -o ${PREFIX}/lib/libtlse.dylib tlse.o; fi
     - cd .. && rm -R tlse
-    - magic run {{ENVIRONMENT_FLAG}} mojo package {{NAME}} -o ${PREFIX}/lib/mojo/{{NAME}}.mojopkg
+    - magic run {{ENVIRONMENT_FLAG}} mojo package mojo_tlse -o ${PREFIX}/lib/mojo/mojo_tlse.mojopkg
 
 requirements:
   run:

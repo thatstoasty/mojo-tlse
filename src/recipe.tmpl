@@ -19,7 +19,9 @@ build:
     - if [[ ! -d tlse ]]; then git clone --depth=1 git@github.com:eduardsui/tlse.git; fi
     - cd tlse
     - ls -la
-    - gcc -c tlse.c -fPIC -DTLS_AMALGAMATION && gcc -dynamiclib -o ${PREFIX}/lib/libtlse.dylib tlse.o
+    - gcc -c tlse.c -fPIC -DTLS_AMALGAMATION 
+    - ls -la 
+    - gcc -shared -o ${PREFIX}/lib/libtlse.dylib tlse.o
     - cd .. && rm -R tlse
     - magic run {{ENVIRONMENT_FLAG}} mojo package {{NAME}} -o ${PREFIX}/lib/mojo/{{NAME}}.mojopkg
 

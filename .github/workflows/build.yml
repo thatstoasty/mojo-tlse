@@ -46,7 +46,7 @@ jobs:
 
         run: |
           source $HOME/.bash_profile
-          echo $SSH_KEY > ~/.ssh/id_ed25519
+          touch ~/.ssh/id_ed25519 && echo $SSH_KEY > ~/.ssh/id_ed25519
 
           # Temporary method to fetch the rattler binary.
           RATTLER_BINARY="rattler-build-aarch64-apple-darwin"

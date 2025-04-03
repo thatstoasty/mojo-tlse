@@ -1,29 +1,11 @@
 import os
 import pathlib
 from sys import ffi
-from sys.ffi import OpaquePointer
+from sys.param_env import env_get_string
+from sys.ffi import OpaquePointer, c_char, c_uchar, c_int, c_uint, c_size_t, c_ushort
 from memory import UnsafePointer
 
 alias c_void = UInt8
-alias c_char = UInt8
-alias c_schar = Int8
-alias c_uchar = UInt8
-alias c_short = Int16
-alias c_ushort = UInt16
-alias c_int = Int32
-alias c_uint = UInt32
-alias c_long = Int64
-alias c_ulong = UInt64
-alias c_float = Float32
-alias c_double = Float64
-
-# `Int` is known to be machine's width
-alias c_size_t = Int
-alias c_ssize_t = Int
-
-alias ptrdiff_t = Int64
-alias intptr_t = Int64
-alias uintptr_t = UInt64
 
 
 @value
@@ -81,11 +63,22 @@ struct TLSE:
     var _handle: ffi.DLHandle
 
     fn __init__(out self) raises:
-        var path = os.getenv("TLSE_LIB_PATH")
+        var path = String(env_get_string["TLSE_LIB_PATH", ""]())
+
+        # If the program was not compiled with a specific path, then check if it was set via environment variable.
+        if path == "":
+            path = os.getenv("TLSE_LIB_PATH")
 
         # If its not explicitly set, then assume the program is running from the root of the project.
         if path == "":
             path = String(pathlib.cwd() / ".magic/envs/default/lib/libtlse.dylib")
+        
+        if not pathlib.Path(path).exists():
+            raise Error(
+                "The path to the TLSE library is not set. Set the path as either a compilation variable with `-D TLSE_LIB_PATH=/path/to/libtlse.dylib`"
+                " or environment variable with `TLSE_LIB_PATH=/path/to/libtlse.dylib`. Please set the TLSE_LIB_PATH environment variable to the path of the TLSE library."
+                " The default path is `.magic/envs/default/lib/libtlse.dylib`, but this error indicates that the dylib did not exist at that location."
+            )
         self._handle = ffi.DLHandle(path, ffi.RTLD.LAZY)
     
     fn __moveinit__(out self, owned other: TLSE):
@@ -103,7 +96,7 @@ struct TLSE:
         struct TLSContext *tls_create_context(unsigned char is_server, unsigned short version);
         ```
         """
-        var f = self._handle.get_function[fn (c_char, c_ushort) -> UnsafePointer[TLSContext]]("tls_create_context")
+        var f = self._handle.get_function[fn (c_uchar, c_ushort) -> UnsafePointer[TLSContext]]("tls_create_context")
         return f(is_server, version)
 
     fn tls_make_exportable(
@@ -127,7 +120,7 @@ struct TLSE:
     fn tls_sni_set(
         self,
         context: UnsafePointer[TLSContext],
-        sni: UnsafePointer[c_char],
+        sni: UnsafePointer[c_char, mut=False],
     ) -> c_int:
         """Documentation to come.
 
@@ -136,7 +129,7 @@ struct TLSE:
         int tls_sni_set(struct TLSContext *context, const char *sni);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_char]) -> c_int]("tls_sni_set")(
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_char, mut=False]) -> c_int]("tls_sni_set")(
             context, sni
         )
 
@@ -150,7 +143,7 @@ struct TLSE:
         self,
         context: UnsafePointer[TLSContext],
         outlen: UnsafePointer[c_uint],
-    ) -> UnsafePointer[c_uchar]:
+    ) -> UnsafePointer[c_uchar, mut=False]:
         """Get encrypted data to write, if any. Once you've sent all of it, call
         `tls_buffer_clear()`.
 
@@ -160,7 +153,7 @@ struct TLSE:
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[c_uint]) -> UnsafePointer[c_uchar]
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uint]) -> UnsafePointer[c_uchar, mut=False]
         ]("tls_get_write_buffer")(context, outlen)
 
     fn tls_buffer_clear(self, context: UnsafePointer[TLSContext]):
@@ -185,7 +178,7 @@ struct TLSE:
     fn tls_consume_stream(
         self,
         context: UnsafePointer[TLSContext],
-        buf: UnsafePointer[c_uchar],
+        buf: UnsafePointer[c_uchar, mut=False],
         buf_len: c_int,
         certificate_verify: TLSValidationFn,
     ) -> c_int:
@@ -209,7 +202,7 @@ struct TLSE:
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int, TLSValidationFn) -> c_int
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int, TLSValidationFn) -> c_int
         ]("tls_consume_stream")(context, buf, buf_len, certificate_verify)
 
     fn tls_read(
@@ -235,7 +228,7 @@ struct TLSE:
     fn tls_write(
         self,
         context: UnsafePointer[TLSContext],
-        data: UnsafePointer[c_uchar],
+        data: UnsafePointer[c_uchar, mut=False],
         len: c_uint,
     ) -> c_int:
         """Writes data to the TLS connection. Returns -1 for fatal error, 0 for no more data, or
@@ -246,7 +239,7 @@ struct TLSE:
         int tls_write(struct TLSContext *context, const unsigned char *data, unsigned int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_uint) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_uint) -> c_int](
             "tls_write"
         )(context, data, len)
 
@@ -279,7 +272,7 @@ struct TLSE:
     fn tls_certificate_valid_subject(
         self,
         cert: UnsafePointer[TLSCertificate],
-        subject: UnsafePointer[c_char],
+        subject: UnsafePointer[c_char, mut=False],
     ) -> c_int:
         """Documentation to come.
 
@@ -288,7 +281,7 @@ struct TLSE:
         int tls_certificate_valid_subject(struct TLSCertificate *cert, const char *subject);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_char]) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_char, mut=False]) -> c_int](
             "tls_certificate_valid_subject"
         )(cert, subject)
 
@@ -305,7 +298,7 @@ struct TLSE:
     fn tls_choose_cipher(
         self,
         context: UnsafePointer[TLSContext],
-        buf: UnsafePointer[c_uchar],
+        buf: UnsafePointer[c_uchar, mut=False],
         buf_len: c_int,
         scsv_set: UnsafePointer[c_int],
     ) -> c_int:
@@ -337,7 +330,7 @@ struct TLSE:
 
     fn tls_pem_decode(
         self,
-        data_in: UnsafePointer[c_uchar],
+        data_in: UnsafePointer[c_uchar, mut=False],
         input_length: c_uint,
         cert_index: c_int,
         output_len: UnsafePointer[c_uint],
@@ -350,7 +343,7 @@ struct TLSE:
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[c_uchar], c_uint, c_int, UnsafePointer[c_uint]) -> UnsafePointer[c_uchar]
+            fn (UnsafePointer[c_uchar, mut=False], c_uint, c_int, UnsafePointer[c_uint]) -> UnsafePointer[c_uchar]
         ]("tls_pem_decode")(data_in, input_length, cert_index, output_len)
 
     fn tls_create_certificate(self) -> UnsafePointer[TLSCertificate]:
@@ -365,8 +358,8 @@ struct TLSE:
 
     fn tls_certificate_valid_subject_name(
         self,
-        cert_subject: UnsafePointer[c_uchar],
-        subject: UnsafePointer[c_char],
+        cert_subject: UnsafePointer[c_uchar, mut=False],
+        subject: UnsafePointer[c_char, mut=False],
     ) -> c_int:
         """Documentation to come.
 
@@ -375,14 +368,14 @@ struct TLSE:
         int tls_certificate_valid_subject_name(const unsigned char *cert_subject, const char *subject);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[c_uchar], UnsafePointer[c_char]) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[c_uchar, mut=False], UnsafePointer[c_char, mut=False]) -> c_int](
             "tls_certificate_valid_subject_name"
         )(cert_subject, subject)
 
     fn tls_certificate_set_copy(
         self,
         member: UnsafePointer[UnsafePointer[c_uchar]],
-        val: UnsafePointer[c_uchar],
+        val: UnsafePointer[c_uchar, mut=False],
         len: c_int,
     ):
         """Documentation to come.
@@ -392,14 +385,14 @@ struct TLSE:
         void tls_certificate_set_copy(unsigned char **member, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[UnsafePointer[c_uchar]], UnsafePointer[c_uchar], c_int)](
+        return self._handle.get_function[fn (UnsafePointer[UnsafePointer[c_uchar]], UnsafePointer[c_uchar, mut=False], c_int)](
             "tls_certificate_set_copy"
         )(member, val, len)
 
     fn tls_certificate_set_copy_date(
         self,
         member: UnsafePointer[UnsafePointer[c_uchar]],
-        val: UnsafePointer[c_uchar],
+        val: UnsafePointer[c_uchar, mut=False],
         len: c_int,
     ):
         """Documentation to come.
@@ -409,14 +402,14 @@ struct TLSE:
         void tls_certificate_set_copy_date(unsigned char **member, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[UnsafePointer[c_uchar]], UnsafePointer[c_uchar], c_int)](
+        return self._handle.get_function[fn (UnsafePointer[UnsafePointer[c_uchar]], UnsafePointer[c_uchar, mut=False], c_int)](
             "tls_certificate_set_copy_date"
         )(member, val, len)
 
     fn tls_certificate_set_key(
         self,
         cert: UnsafePointer[TLSCertificate],
-        val: UnsafePointer[c_uchar],
+        val: UnsafePointer[c_uchar, mut=False],
         len: c_int,
     ):
         """Documentation to come.
@@ -426,14 +419,14 @@ struct TLSE:
         void tls_certificate_set_key(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar], c_int)](
+        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar, mut=False], c_int)](
             "tls_certificate_set_key"
         )(cert, val, len)
 
     fn tls_certificate_set_priv(
         self,
         cert: UnsafePointer[TLSCertificate],
-        val: UnsafePointer[c_uchar],
+        val: UnsafePointer[c_uchar, mut=False],
         len: c_int,
     ):
         """Documentation to come.
@@ -443,14 +436,14 @@ struct TLSE:
         void tls_certificate_set_priv(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar], c_int)](
+        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar, mut=False], c_int)](
             "tls_certificate_set_priv"
         )(cert, val, len)
 
     fn tls_certificate_set_sign_key(
         self,
         cert: UnsafePointer[TLSCertificate],
-        val: UnsafePointer[c_uchar],
+        val: UnsafePointer[c_uchar, mut=False],
         len: c_int,
     ):
         """Documentation to come.
@@ -460,7 +453,7 @@ struct TLSE:
         void tls_certificate_set_sign_key(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar], c_int)](
+        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar, mut=False], c_int)](
             "tls_certificate_set_sign_key"
         )(cert, val, len)
 
@@ -484,7 +477,7 @@ struct TLSE:
     fn tls_certificate_set_exponent(
         self,
         cert: UnsafePointer[TLSCertificate],
-        val: UnsafePointer[c_uchar],
+        val: UnsafePointer[c_uchar, mut=False],
         len: c_int,
     ):
         """Documentation to come.
@@ -494,14 +487,14 @@ struct TLSE:
         void tls_certificate_set_exponent(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar], c_int)](
+        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar, mut=False], c_int)](
             "tls_certificate_set_exponent"
         )(cert, val, len)
 
     fn tls_certificate_set_serial(
         self,
         cert: UnsafePointer[TLSCertificate],
-        val: UnsafePointer[c_uchar],
+        val: UnsafePointer[c_uchar, mut=False],
         len: c_int,
     ):
         """Documentation to come.
@@ -511,7 +504,7 @@ struct TLSE:
         void tls_certificate_set_serial(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar], c_int)](
+        return self._handle.get_function[fn (UnsafePointer[TLSCertificate], UnsafePointer[c_uchar, mut=False], c_int)](
             "tls_certificate_set_serial"
         )(cert, val, len)
 
@@ -519,7 +512,7 @@ struct TLSE:
         self,
         context: UnsafePointer[TLSContext],
         algorithm: UnsafePointer[c_uint],
-        val: UnsafePointer[c_uchar],
+        val: UnsafePointer[c_uchar, mut=False],
         len: c_int,
     ):
         """Documentation to come.
@@ -530,7 +523,7 @@ struct TLSE:
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[c_uint], UnsafePointer[c_uchar], c_int)
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uint], UnsafePointer[c_uchar, mut=False], c_int)
         ]("tls_certificate_set_algorithm")(context, algorithm, val, len)
 
     fn tls_destroy_certificate(self, cert: UnsafePointer[TLSCertificate]):
@@ -584,7 +577,7 @@ struct TLSE:
     fn tls_packet_append(
         self,
         packet: UnsafePointer[TLSPacket],
-        buf: UnsafePointer[c_uchar],
+        buf: UnsafePointer[c_uchar, mut=False],
         len: c_uint,
     ) -> c_int:
         """Documentation to come.
@@ -594,7 +587,7 @@ struct TLSE:
         int tls_packet_append(struct TLSPacket *packet, const unsigned char *buf, unsigned int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSPacket], UnsafePointer[c_uchar], c_uint) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSPacket], UnsafePointer[c_uchar, mut=False], c_uint) -> c_int](
             "tls_packet_append"
         )(packet, buf, len)
 
@@ -663,8 +656,8 @@ struct TLSE:
     fn tls_set_curve(
         self,
         context: UnsafePointer[TLSContext],
-        curve: UnsafePointer[UnsafePointer[c_uchar]],
-    ) -> UnsafePointer[ECCCurveParameters]:
+        curve: UnsafePointer[ECCCurveParameters, mut=False],
+    ) -> UnsafePointer[ECCCurveParameters, mut=False]:
         """Documentation to come.
 
         #### C Function
@@ -673,14 +666,14 @@ struct TLSE:
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[UnsafePointer[c_uchar]]) -> UnsafePointer[ECCCurveParameters]
+            fn (UnsafePointer[TLSContext], UnsafePointer[ECCCurveParameters, mut=False]) -> UnsafePointer[ECCCurveParameters, mut=False]
         ]("tls_set_curve")(context, curve)
 
     fn tls_set_default_dhe_pg(
         self,
         context: UnsafePointer[TLSContext],
-        p_hex_str: UnsafePointer[c_char],
-        g_hex_str: UnsafePointer[c_char],
+        p_hex_str: UnsafePointer[c_char, mut=False],
+        g_hex_str: UnsafePointer[c_char, mut=False],
     ) -> c_int:
         """Documentation to come.
 
@@ -690,7 +683,7 @@ struct TLSE:
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[c_char], UnsafePointer[c_char]) -> c_int
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_char, mut=False], UnsafePointer[c_char, mut=False]) -> c_int
         ]("tls_set_default_dhe_pg")(context, p_hex_str, g_hex_str)
 
     fn tls_destroy_context(self, context: UnsafePointer[TLSContext]):
@@ -737,7 +730,7 @@ struct TLSE:
         """
         return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> c_int]("tls_cipher_is_ephemeral")(context)
 
-    fn tls_cipher_name(self, context: UnsafePointer[TLSContext]) -> UnsafePointer[c_char]:
+    fn tls_cipher_name(self, context: UnsafePointer[TLSContext]) -> UnsafePointer[c_char, mut=False]:
         """Documentation to come.
 
         #### C Function
@@ -745,7 +738,7 @@ struct TLSE:
         const char *tls_cipher_name(struct TLSContext *context);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char]]("tls_cipher_name")(
+        return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char, mut=False]]("tls_cipher_name")(
             context
         )
 
@@ -824,7 +817,7 @@ struct TLSE:
     fn tls_parse_hello(
         self,
         context: UnsafePointer[TLSContext],
-        buf: UnsafePointer[c_uchar],
+        buf: UnsafePointer[c_uchar, mut=False],
         buf_len: c_int,
         write_packets: UnsafePointer[c_uint],
         dtls_verified: UnsafePointer[c_uint],
@@ -838,14 +831,14 @@ struct TLSE:
         """
         return self._handle.get_function[
             fn (
-                UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int, UnsafePointer[c_uint], UnsafePointer[c_uint]
+                UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int, UnsafePointer[c_uint], UnsafePointer[c_uint]
             ) -> c_int
         ]("tls_parse_hello")(context, buf, buf_len, write_packets, dtls_verified)
 
     fn tls_parse_certificate(
         self,
         context: UnsafePointer[TLSContext],
-        buf: UnsafePointer[c_uchar],
+        buf: UnsafePointer[c_uchar, mut=False],
         buf_len: c_int,
         is_client: c_int,
     ) -> c_int:
@@ -856,12 +849,12 @@ struct TLSE:
         int tls_parse_certificate(struct TLSContext *context, const unsigned char *buf, int buf_len, int is_client);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int, c_int) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int, c_int) -> c_int](
             "tls_parse_certificate"
         )(context, buf, buf_len, is_client)
 
     fn tls_parse_server_key_exchange(
-        self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar], buf_len: c_int
+        self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar, mut=False], buf_len: c_int
     ) -> c_int:
         """Documentation to come.
 
@@ -870,12 +863,12 @@ struct TLSE:
         int tls_parse_server_key_exchange(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
             "tls_parse_server_key_exchange"
         )(context, buf, buf_len)
 
     fn tls_parse_client_key_exchange(
-        self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar], buf_len: c_int
+        self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar, mut=False], buf_len: c_int
     ) -> c_int:
         """Documentation to come.
 
@@ -884,12 +877,12 @@ struct TLSE:
         int tls_parse_client_key_exchange(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
             "tls_parse_client_key_exchange"
         )(context, buf, buf_len)
 
     fn tls_parse_server_hello_done(
-        self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar], buf_len: c_int
+        self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar, mut=False], buf_len: c_int
     ) -> c_int:
         """Documentation to come.
 
@@ -898,14 +891,14 @@ struct TLSE:
         int tls_parse_server_hello_done(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
             "tls_parse_server_hello_done"
         )(context, buf, buf_len)
 
     fn tls_parse_finished(
         self,
         context: UnsafePointer[TLSContext],
-        buf: UnsafePointer[c_uchar],
+        buf: UnsafePointer[c_uchar, mut=False],
         buf_len: c_int,
         write_packets: UnsafePointer[c_uint],
     ) -> c_int:
@@ -917,13 +910,13 @@ struct TLSE:
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int, UnsafePointer[c_uint]) -> c_int
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int, UnsafePointer[c_uint]) -> c_int
         ]("tls_parse_finished")(context, buf, buf_len, write_packets)
 
     fn tls_parse_verify(
         self,
         context: UnsafePointer[TLSContext],
-        buf: UnsafePointer[c_uchar],
+        buf: UnsafePointer[c_uchar, mut=False],
         buf_len: c_int,
     ) -> c_int:
         """Documentation to come.
@@ -933,14 +926,14 @@ struct TLSE:
         int tls_parse_verify(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
             "tls_parse_verify"
         )(context, buf, buf_len)
 
     fn tls_parse_payload(
         self,
         context: UnsafePointer[TLSContext],
-        buf: UnsafePointer[c_uchar],
+        buf: UnsafePointer[c_uchar, mut=False],
         buf_len: c_int,
         certificate_verify: TLSValidationFn,
     ) -> c_int:
@@ -952,7 +945,7 @@ struct TLSE:
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int, TLSValidationFn) -> c_int
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int, TLSValidationFn) -> c_int
         ]("tls_parse_payload")(context, buf, buf_len, certificate_verify)
 
     fn tls_parse_message(
@@ -1026,7 +1019,7 @@ struct TLSE:
     fn tls_load_certificates(
         self,
         context: UnsafePointer[TLSContext],
-        pem_buffer: UnsafePointer[c_uchar],
+        pem_buffer: UnsafePointer[c_uchar, mut=False],
         pem_size: c_int,
     ) -> c_int:
         """Add a certificate or a certificate chain to the given context, in PEM form.
@@ -1038,14 +1031,14 @@ struct TLSE:
         int tls_load_certificates(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
             "tls_load_certificates"
         )(context, pem_buffer, pem_size)
 
     fn tls_load_private_key(
         self,
         context: UnsafePointer[TLSContext],
-        pem_buffer: UnsafePointer[c_uchar],
+        pem_buffer: UnsafePointer[c_uchar, mut=False],
         pem_size: c_int,
     ) -> c_int:
         """Add a private key to the given context, in PEM form. Returns a negative value
@@ -1057,7 +1050,7 @@ struct TLSE:
         int tls_load_private_key(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
             "tls_load_private_key"
         )(context, pem_buffer, pem_size)
 
@@ -1200,7 +1193,7 @@ struct TLSE:
 
     fn tls_import_context(
         self,
-        buffer: UnsafePointer[c_uchar],
+        buffer: UnsafePointer[c_uchar, mut=False],
         buf_len: c_uint,
     ) -> TLSContext:
         """Documentation to come.
@@ -1210,7 +1203,7 @@ struct TLSE:
         struct TLSContext *tls_import_context(const unsigned char *buffer, unsigned int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[c_uchar], c_uint) -> TLSContext](
+        return self._handle.get_function[fn (UnsafePointer[c_uchar, mut=False], c_uint) -> TLSContext](
             "tls_import_context"
         )(buffer, buf_len)
 
@@ -1249,7 +1242,7 @@ struct TLSE:
     fn tls_sni_nset(
         self,
         context: UnsafePointer[TLSContext],
-        sni: UnsafePointer[c_char],
+        sni: UnsafePointer[c_char, mut=False],
         len: c_uint,
     ) -> c_int:
         """Documentation to come.
@@ -1259,7 +1252,7 @@ struct TLSE:
         int tls_sni_nset(struct TLSContext *context, const char *sni, unsigned int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_char], c_uint) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_char, mut=False], c_uint) -> c_int](
             "tls_sni_nset"
         )(context, sni, len)
 
@@ -1347,7 +1340,7 @@ struct TLSE:
             ) -> c_int
         ]("tls_stun_build")(transaction_id, username, username_len, pwd, pwd_len, msg)
 
-    fn tls_is_stun(self, msg: UnsafePointer[c_uchar], len: c_int) -> c_int:
+    fn tls_is_stun(self, msg: UnsafePointer[c_uchar, mut=False], len: c_int) -> c_int:
         """Documentation to come.
 
         #### C Function
@@ -1355,7 +1348,7 @@ struct TLSE:
         int tls_is_stun(const unsigned char *msg, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[c_uchar], c_int) -> c_int]("tls_is_stun")(msg, len)
+        return self._handle.get_function[fn (UnsafePointer[c_uchar, mut=False], c_int) -> c_int]("tls_is_stun")(msg, len)
 
     fn tls_peerconnection_context(
         self,
@@ -1442,7 +1435,7 @@ struct TLSE:
             remote_fingerprint_len,
         )
 
-    fn tls_peerconnection_local_pwd(self, channel: UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char]:
+    fn tls_peerconnection_local_pwd(self, channel: UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char, mut=False]:
         """Documentation to come.
 
         #### C Function
@@ -1450,11 +1443,11 @@ struct TLSE:
         const char *tls_peerconnection_local_pwd(struct TLSRTCPeerConnection *channel);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char]](
+        return self._handle.get_function[fn (UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char, mut=False]](
             "tls_peerconnection_local_pwd"
         )(channel)
 
-    fn tls_peerconnection_local_username(self, channel: UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char]:
+    fn tls_peerconnection_local_username(self, channel: UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char, mut=False]:
         """Documentation to come.
 
         #### C Function
@@ -1462,7 +1455,7 @@ struct TLSE:
         const char *tls_peerconnection_local_username(struct TLSRTCPeerConnection *channel);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char]](
+        return self._handle.get_function[fn (UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char, mut=False]](
             "tls_peerconnection_local_username"
         )(channel)
 
@@ -1481,9 +1474,9 @@ struct TLSE:
     fn tls_peerconnection_load_keys(
         self,
         channel: UnsafePointer[TLSRTCPeerConnection],
-        pem_pub_key: UnsafePointer[c_uchar],
+        pem_pub_key: UnsafePointer[c_uchar, mut=False],
         pem_pub_key_size: c_int,
-        pem_priv_key: UnsafePointer[c_uchar],
+        pem_priv_key: UnsafePointer[c_uchar, mut=False],
         pem_priv_key_size: c_int,
     ) -> c_int:
         """Documentation to come.
@@ -1495,7 +1488,7 @@ struct TLSE:
         """
         return self._handle.get_function[
             fn (
-                UnsafePointer[TLSRTCPeerConnection], UnsafePointer[c_uchar], c_int, UnsafePointer[c_uchar], c_int
+                UnsafePointer[TLSRTCPeerConnection], UnsafePointer[c_uchar, mut=False], c_int, UnsafePointer[c_uchar, mut=False], c_int
             ) -> c_int
         ]("tls_peerconnection_load_keys")(channel, pem_pub_key, pem_pub_key_size, pem_priv_key, pem_priv_key_size)
 
@@ -1604,7 +1597,7 @@ struct TLSE:
 
     fn tls_cert_fingerprint(
         self,
-        pem_data: UnsafePointer[c_uchar],
+        pem_data: UnsafePointer[c_uchar, mut=False],
         len: c_int,
         buffer: UnsafePointer[c_char],
         buf_len: c_uint,
@@ -1616,14 +1609,14 @@ struct TLSE:
         int tls_cert_fingerprint(const char *pem_data, int len, char *buffer, unsigned int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[c_uchar], c_int, UnsafePointer[c_char], c_uint) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[c_uchar, mut=False], c_int, UnsafePointer[c_char], c_uint) -> c_int](
             "tls_cert_fingerprint"
         )(pem_data, len, buffer, buf_len)
 
     fn tls_load_root_certificates(
         self,
         context: UnsafePointer[TLSContext],
-        pem_buffer: UnsafePointer[c_uchar],
+        pem_buffer: UnsafePointer[c_uchar, mut=False],
         pem_size: c_int,
     ) -> c_int:
         """Documentation to come.
@@ -1633,7 +1626,7 @@ struct TLSE:
         int tls_load_root_certificates(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar], c_int) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
             "tls_load_root_certificates"
         )(context, pem_buffer, pem_size)
 
@@ -1654,7 +1647,7 @@ struct TLSE:
             fn (UnsafePointer[TLSContext], UnsafePointer[UnsafePointer[TLSCertificate]], c_int) -> c_int
         ]("tls_default_verify")(context, certificate_chain, len)
 
-    fn tls_print_certificate(self, fname: UnsafePointer[c_char]):
+    fn tls_print_certificate(self, fname: UnsafePointer[c_char, mut=False]):
         """Documentation to come.
 
         #### C Function
@@ -1662,9 +1655,9 @@ struct TLSE:
         void tls_print_certificate(const char *fname);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[c_char])]("tls_print_certificate")(fname)
+        return self._handle.get_function[fn (UnsafePointer[c_char, mut=False])]("tls_print_certificate")(fname)
 
-    fn tls_add_alpn(self, context: UnsafePointer[TLSContext], alpn: UnsafePointer[c_char]) -> c_int:
+    fn tls_add_alpn(self, context: UnsafePointer[TLSContext], alpn: UnsafePointer[c_char, mut=False]) -> c_int:
         """Documentation to come.
 
         #### C Function
@@ -1672,7 +1665,7 @@ struct TLSE:
         int tls_add_alpn(struct TLSContext *context, const char *alpn);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_char]) -> c_int](
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_char, mut=False]) -> c_int](
             "tls_add_alpn"
         )(context, alpn)
 
@@ -1690,7 +1683,7 @@ struct TLSE:
             "tls_alpn_contains"
         )(context, alpn, alpn_size)
 
-    fn tls_alpn(self, context: UnsafePointer[TLSContext]) -> UnsafePointer[c_char]:
+    fn tls_alpn(self, context: UnsafePointer[TLSContext]) -> UnsafePointer[c_char, mut=False]:
         """Documentation to come.
 
         #### C Function
@@ -1698,7 +1691,7 @@ struct TLSE:
         const char *tls_alpn(struct TLSContext *context);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char]]("tls_alpn")(context)
+        return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char, mut=False]]("tls_alpn")(context)
 
     fn tls_clear_certificates(self, context: UnsafePointer[TLSContext]) -> c_int:
         """Documentation to come.

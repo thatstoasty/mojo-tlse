@@ -19,5 +19,5 @@ jobs:
           run: |
             curl -ssL https://magic.modular.com | bash
             source $HOME/.bash_profile
-            magic run mojo package mojo_tlse -o mojo_tlse.mojopkg
+            magic run mojo package src/mojo_tlse -o mojo_tlse.mojopkg
         

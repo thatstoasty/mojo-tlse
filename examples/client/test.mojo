@@ -74,7 +74,7 @@ fn main() raises:
         socket.connect(host, port)
         var context = tlse.tls_create_context(0, 0x0304)
         tlse.tls_make_exportable(context, 1)
-        _ = tlse.tls_sni_set(context, host.unsafe_ptr())
+        _ = tlse.tls_sni_set(context, host.unsafe_cstr_ptr())
         _ = tlse.tls_client_connect(context)
         _ = send_pending(tlse, socket, context)
 

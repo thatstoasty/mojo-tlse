@@ -1,4 +1,4 @@
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct TLSVersions:
     var value: UInt16
@@ -12,7 +12,7 @@ struct TLSVersions:
     alias DTLS_V13 = Self(0xFEFC)
 
 
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct TLSResult:
     var value: Int32
@@ -38,7 +38,7 @@ struct TLSResult:
 
 
 # Useful for checking ciphersuites: https://ciphersuite.info/cs/
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct TLS13CipherSuites:
     var value: UInt16
@@ -49,7 +49,7 @@ struct TLS13CipherSuites:
     alias TLS_AES_128_CCM_8_SHA256 = Self(0x1305)
 
 
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct RSACipherSuites:
     var value: UInt16
@@ -61,7 +61,7 @@ struct RSACipherSuites:
     alias TLS_RSA_WITH_AES_256_GCM_SHA384 = Self(0x009D)
 
 
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct DHERSACipherSuites:
     """Forward secrecy."""
@@ -81,7 +81,7 @@ struct DHERSACipherSuites:
     """Supports TLS1.0, TLS1.1, TLS1.2, TLS1.3"""
 
 
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct ECDHERSACipherSuites:
     var value: UInt16
@@ -97,7 +97,7 @@ struct ECDHERSACipherSuites:
     """Supports TLS1.0, TLS1.1, TLS1.2, TLS1.3"""
 
 
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct ECDHEECDSACipherSuites:
     var value: UInt16
@@ -115,7 +115,7 @@ struct ECDHEECDSACipherSuites:
     """Supports TLS1.0, TLS1.1, TLS1.2, TLS1.3"""
 
 
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct TLS1213CipherSuites:
     var value: UInt16
@@ -171,7 +171,7 @@ alias TLS_FALLBACK_SCSV = 0x5600
 # define SRTP_AUTH_HMAC_SHA1 1
 
 
-@value
+@fieldwise_init
 @register_passable("trivial")
 struct Result:
     var value: Int32

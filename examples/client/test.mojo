@@ -4,7 +4,6 @@ from lightbug_http.connection import create_connection
 from mojo_tlse.bindings import c_int, c_char, c_uchar, TLSContext, TLSCertificate, TLSE
 from mojo_tlse.enums import Result
 from memory import UnsafePointer, Span
-from utils import StringSlice
 
 
 fn validate_certificate(
@@ -118,7 +117,7 @@ fn main() raises:
 
                     var read_buffer = List[Byte, True](capacity=65535)
                     var bytes_read = tlse.tls_read(context, read_buffer.unsafe_ptr(), read_buffer.capacity)
-                    read_buffer.size += Int(bytes_read)
+                    read_buffer._len += Int(bytes_read)
                     print("bytes read:", bytes_read)
                     if bytes_read > 0:
                         print(StringSlice(unsafe_from_utf8=read_buffer))

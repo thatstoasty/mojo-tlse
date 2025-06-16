@@ -7,10 +7,10 @@ channels = [
 ]
 description = "Add a short description here"
 name = "mojo-tlse-client"
-platforms = ["osx-arm64"]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
 version = "0.1.0"
 
 [dependencies]
-max = "==25.1.0"
-lightbug_http = "==0.1.12"
-mojo-tlse = "==25.1.0"
+max = "=25.4.0"
+lightbug_http = "=25.4.0"
+mojo-tlse = "=25.4.0"

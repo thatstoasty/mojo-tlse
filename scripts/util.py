@@ -81,7 +81,7 @@ def generate_recipe() -> None:
     }
 
     # Populate package information
-    package_name = PROJECT_CONFIG["package"]["name"]
+    package_name = PROJECT_CONFIG["package"]["name"].replace("-", "_")
     recipe["package"]["name"] = package_name
     recipe["package"]["version"] = PROJECT_CONFIG["package"]["version"]
 
@@ -90,8 +90,15 @@ def generate_recipe() -> None:
     recipe["source"].append({"path": PROJECT_CONFIG["workspace"]["license-file"]})
 
     # Populate build script
-    recipe["build"]["script"].append(
-        f"pixi run mojo package {package_name} -o ${{PREFIX}}/lib/mojo/{package_name}.mojopkg"
+    recipe["build"]["script"].extend(
+        [
+            "if [[ ! -d tlse ]]; then git clone --depth=1 git@github.com:eduardsui/tlse.git; fi",
+            "cd tlse",
+            "gcc -c tlse.c -fPIC -DTLS_AMALGAMATION",
+            "if [[ $TARGET_PLATFORM == 'linux-64' ]]; then gcc -shared -o ${PREFIX}/lib/libtlse.so tlse.o; else gcc -dynamiclib -o ${PREFIX}/lib/libtlse.dylib tlse.o; fi",
+            "cd .. && rm -R tlse",
+            f"pixi run mojo package {package_name} -o ${{PREFIX}}/lib/mojo/{package_name}.mojopkg"
+        ]
     )
 
     # Populate requirements
@@ -206,9 +213,8 @@ def run_benchmarks(path: str | None = None) -> None:
 @app.command()
 def build_conda_package() -> None:
     """Builds the conda package for the project."""
-    # Generate the recipe if it does not exist already.
-    if not RECIPE_PATH.exists():
-        generate_recipe()
+    # Generate the recipe, and overwrite it if exists already.
+    generate_recipe()
 
     subprocess.run(
         ["pixi", "build", "-o", CONDA_BUILD_PATH],

@@ -1,17 +1,14 @@
 import tomllib
-import argparse
 import os
 import subprocess
 import shutil
 import glob
-import logging
 from typing import Any
 from pathlib import Path
 
 import yaml
 import typer
 
-logger = logging.getLogger(__name__)
 
 app = typer.Typer()
 
@@ -43,7 +40,7 @@ class TemporaryBuildDirectory:
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if TEMP_DIR.exists():
             shutil.rmtree(TEMP_DIR)
-            logger.info("Temporary build directory removed.")
+            print("Temporary build directory removed.")
 
 
 def format_dependency(name: str, version: str) -> str:
@@ -81,7 +78,7 @@ def generate_recipe() -> None:
     }
 
     # Populate package information
-    package_name = PROJECT_CONFIG["package"]["name"].replace("-", "_")
+    package_name = PROJECT_CONFIG["package"]["name"]
     recipe["package"]["name"] = package_name
     recipe["package"]["version"] = PROJECT_CONFIG["package"]["version"]
 
@@ -90,15 +87,8 @@ def generate_recipe() -> None:
     recipe["source"].append({"path": PROJECT_CONFIG["workspace"]["license-file"]})
 
     # Populate build script
-    recipe["build"]["script"].extend(
-        [
-            "if [[ ! -d tlse ]]; then git clone --depth=1 git@github.com:eduardsui/tlse.git; fi",
-            "cd tlse",
-            "gcc -c tlse.c -fPIC -DTLS_AMALGAMATION",
-            "if [[ $TARGET_PLATFORM == 'linux-64' ]]; then gcc -shared -o ${PREFIX}/lib/libtlse.so tlse.o; else gcc -dynamiclib -o ${PREFIX}/lib/libtlse.dylib tlse.o; fi",
-            "cd .. && rm -R tlse",
-            f"pixi run mojo package {package_name} -o ${{PREFIX}}/lib/mojo/{package_name}.mojopkg"
-        ]
+    recipe["build"]["script"].append(
+        f"pixi run mojo package {package_name} -o ${{PREFIX}}/lib/mojo/{package_name}.mojopkg"
     )
 
     # Populate requirements
@@ -120,8 +110,9 @@ def generate_recipe() -> None:
 @app.command()
 def publish(channel: str) -> None:
     """Publishes the conda packages to the specified conda channel."""
-    logger.info(f"Publishing packages to: {channel}")
-    for file in glob.glob(f'{CONDA_BUILD_PATH}/**/*.conda'):
+    print(f"Publishing packages to: {channel}, from {CONDA_BUILD_PATH}.")
+    for file in glob.glob(f'{CONDA_BUILD_PATH}/*.conda'):
+        print(f"Uploading {file} to {channel}...")
         try:
             subprocess.run(
                 ["pixi", "upload", f"https://prefix.dev/api/v1/upload/{channel}", file],
@@ -135,7 +126,7 @@ def publish(channel: str) -> None:
 def remove_temp_directory() -> None:
     """Removes the temporary directory used for building the package."""
     if TEMP_DIR.exists():
-        logger.info("Removing temp directory.")
+        print("Removing temp directory.")
         shutil.rmtree(TEMP_DIR)
 
 
@@ -155,13 +146,13 @@ def run_tests(path: str | None = None) -> None:
     """Executes the tests for the package."""
     TEST_DIR = Path("src/test")
 
-    logger.info("Building package and copying tests.")
+    print("Building package and copying tests.")
     with TemporaryBuildDirectory() as temp_directory:
         shutil.copytree(TEST_DIR, temp_directory, dirs_exist_ok=True)
         target = temp_directory
         if path:
             target = target / path
-        logger.info(f"Running tests at {target}...")
+        print(f"Running tests at {target}...")
         subprocess.run(["mojo", "test", target], check=True)
 
 
@@ -170,17 +161,17 @@ def run_examples(path: str | None = None) -> None:
     """Executes the examples for the package."""
     EXAMPLE_DIR = Path("examples")
     if not EXAMPLE_DIR.exists():
-        logger.info(f"Path does not exist: {EXAMPLE_DIR}.")
+        print(f"Path does not exist: {EXAMPLE_DIR}.")
         return
 
-    logger.info("Building package and copying examples.")
+    print("Building package and copying examples.")
     with TemporaryBuildDirectory() as temp_directory:
         shutil.copytree(EXAMPLE_DIR, temp_directory, dirs_exist_ok=True)
         example_files = EXAMPLE_DIR.glob("*.mojo")
         if path:
             example_files = EXAMPLE_DIR.glob(path)
 
-        logger.info(f"Running examples in {example_files}...")
+        print(f"Running examples in {example_files}...")
         for file in example_files:
             name, _ = file.name.split(".", 1)
             shutil.copyfile(file, temp_directory / file.name)
@@ -192,17 +183,17 @@ def run_examples(path: str | None = None) -> None:
 def run_benchmarks(path: str | None = None) -> None:
     BENCHMARK_DIR = Path("benchmarks")
     if not BENCHMARK_DIR.exists():
-        logger.info(f"Path does not exist: {BENCHMARK_DIR}.")
+        print(f"Path does not exist: {BENCHMARK_DIR}.")
         return
 
-    logger.info("Building package and copying benchmarks.")
+    print("Building package and copying benchmarks.")
     with TemporaryBuildDirectory() as temp_directory:
         shutil.copytree(BENCHMARK_DIR, temp_directory, dirs_exist_ok=True)
         benchmark_files = BENCHMARK_DIR.glob("*.mojo")
         if path:
             benchmark_files = BENCHMARK_DIR.glob(path)
 
-        logger.info(f"Running benchmarks in {benchmark_files}...")
+        print(f"Running benchmarks in {benchmark_files}...")
         for file in benchmark_files:
             name, _ = file.name.split(".", 1)
             shutil.copyfile(file, temp_directory / file.name)
@@ -213,8 +204,9 @@ def run_benchmarks(path: str | None = None) -> None:
 @app.command()
 def build_conda_package() -> None:
     """Builds the conda package for the project."""
-    # Generate the recipe, and overwrite it if exists already.
-    generate_recipe()
+    # Generate the recipe if it does not exist already.
+    if not RECIPE_PATH.exists():
+        generate_recipe()
 
     subprocess.run(
         ["pixi", "build", "-o", CONDA_BUILD_PATH],

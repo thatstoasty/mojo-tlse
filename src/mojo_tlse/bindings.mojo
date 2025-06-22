@@ -6,22 +6,22 @@ from sys.ffi import OpaquePointer, c_char, c_uchar, c_int, c_uint, c_size_t, c_u
 from memory import UnsafePointer
 
 alias c_void = UInt8
+"""C `void` type."""
 
-
-@value
+@fieldwise_init
 struct TLSContext:
     """Read only, the `TLSContext` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
-    Pointers to `TLSContext` should never be dereferenced.
+    Pointers to `TLSContext` should **NEVER** be dereferenced.
     """
     pass
 
 
-@value
+@fieldwise_init
 struct TLSCertificate:
     """Read only, the `TLSCertificate` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
-    Pointers to `TLSCertificate` should never be dereferenced.
+    Pointers to `TLSCertificate` should **NEVER** be dereferenced.
     """
 
     pass
@@ -30,7 +30,7 @@ struct TLSCertificate:
 struct TLSPacket:
     """Read only, the `TLSPacket` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
-    Pointers to `TLSPacket` should never be dereferenced.
+    Pointers to `TLSPacket` should **NEVER** be dereferenced.
     """
 
     pass
@@ -39,7 +39,7 @@ struct TLSPacket:
 struct ECCCurveParameters:
     """Read only, the `ECCCurveParameters` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
-    Pointers to `ECCCurveParameters` should never be dereferenced.
+    Pointers to `ECCCurveParameters` should **NEVER** be dereferenced.
     """
 
     pass
@@ -48,7 +48,7 @@ struct ECCCurveParameters:
 struct TLSRTCPeerConnection:
     """Read only, the `TLSRTCPeerConnection` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.
 
-    Pointers to `TLSRTCPeerConnection` should never be dereferenced.
+    Pointers to `TLSRTCPeerConnection` should **NEVER** be dereferenced.
     """
 
     pass
@@ -57,6 +57,7 @@ struct TLSRTCPeerConnection:
 alias TLSValidationFn = fn (UnsafePointer[TLSContext], UnsafePointer[UnsafePointer[TLSCertificate]], c_int) -> c_int
 """TLS validation function signature."""
 alias TLSPeerConnectionWriteFn = fn (UnsafePointer[TLSRTCPeerConnection], UnsafePointer[c_uchar], c_int) -> c_int
+"""Function signature for writing data to a peer connection."""
 
 
 @fieldwise_init
@@ -104,7 +105,7 @@ struct TLSE(Movable):
             is_server: 1 if the context is for a server, 0 if for a client.
             version: The TLS version to use (e.g., TLSv1.2, TLSv1.3).
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSContext *tls_create_context(unsigned char is_server, unsigned short version);
         ```
@@ -126,9 +127,9 @@ struct TLSE(Movable):
             context: The TLS context to modify.
             exportable_flag: 1 to make the context exportable, 0 otherwise.
 
-        #### C Function
+        #### C Function:
         ```c
-        voidtls_make_exportable(struct TLSContext *context, unsigned char exportable_flag)
+        void tls_make_exportable(struct TLSContext *context, unsigned char exportable_flag)
         ```
         """
         return self._handle.get_function[fn (UnsafePointer[TLSContext], c_uchar)]("tls_make_exportable")(
@@ -151,7 +152,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_sni_set(struct TLSContext *context, const char *sni);
         ```
@@ -172,7 +173,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_client_connect(struct TLSContext *context);
         ```
@@ -194,7 +195,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the write buffer containing encrypted data, or NULL if there's no data to write.
 
-        #### C Function
+        #### C Function:
         ```c
         const unsigned char *tls_get_write_buffer(struct TLSContext *context, unsigned int *outlen);
         ```
@@ -210,7 +211,7 @@ struct TLSE(Movable):
         Args:
             context: The TLS context whose write buffer should be cleared.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_buffer_clear(struct TLSContext *context);
         ```
@@ -223,7 +224,7 @@ struct TLSE(Movable):
         Returns:
             1 for established, 0 for not established yet, and -1 for a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_established(struct TLSContext *context);
         ```
@@ -260,7 +261,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the number of bytes consumed from the buffer, or a negative value for an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_consume_stream(struct TLSContext *context, const unsigned char *buf, int buf_len, tls_validation_function certificate_verify);
         ```
@@ -288,7 +289,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the number of bytes read, or a negative value for an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_read(struct TLSContext *context, unsigned char *buf, unsigned int size);
         ```
@@ -314,7 +315,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the number of bytes written, or a negative value for an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_write(struct TLSContext *context, const unsigned char *data, unsigned int len);
         ```
@@ -332,7 +333,7 @@ struct TLSE(Movable):
         Returns:
             1 if the certificate is valid, 0 if it is not, and -1 for a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_certificate_is_valid(struct TLSCertificate *cert);
         ```
@@ -353,7 +354,7 @@ struct TLSE(Movable):
         Returns:
             1 if the certificate chain is valid, 0 if it is not, and -1 for a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_certificate_chain_is_valid(struct TLSCertificate **certificates, int len);
         ```
@@ -376,7 +377,7 @@ struct TLSE(Movable):
         Returns:
             1 if the subject matches, 0 if it does not, and -1 for a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_certificate_valid_subject(struct TLSCertificate *cert, const char *subject);
         ```
@@ -394,7 +395,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the SNI string, or NULL if no SNI is set.
 
-        #### C Function
+        #### C Function:
         ```c
         const char *tls_sni(struct TLSContext *context);
         ```
@@ -422,7 +423,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the chosen cipher suite, or a negative value for an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_choose_cipher(struct TLSContext *context, const unsigned char *buf, int buf_len, int *scsv_set);
         ```
@@ -439,7 +440,7 @@ struct TLSE(Movable):
         from multiple threads, you'll need to call `tls_init()` once, from a single thread,
         before using the library.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_init();
         ```
@@ -464,7 +465,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the decoded data. The caller is responsible for freeing this memory.
         
-        #### C Function
+        #### C Function:
         ```c
         unsigned char *tls_pem_decode(const unsigned char *data_in, unsigned int input_length, int cert_index, unsigned int *output_len);
         ```
@@ -482,7 +483,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created TLSCertificate structure.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSCertificate *tls_create_certificate();
         ```
@@ -503,7 +504,7 @@ struct TLSE(Movable):
         Returns:
             1 if the subject name matches, 0 if it does not, and -1 for a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_certificate_valid_subject_name(const unsigned char *cert_subject, const char *subject);
         ```
@@ -528,7 +529,7 @@ struct TLSE(Movable):
             val: A pointer to the value to copy.
             len: The length of the value to copy.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_certificate_set_copy(unsigned char **member, const unsigned char *val, int len);
         ```
@@ -552,7 +553,7 @@ struct TLSE(Movable):
             val: A pointer to the date value to copy.
             len: The length of the date value to copy.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_certificate_set_copy_date(unsigned char **member, const unsigned char *val, int len);
         ```
@@ -575,7 +576,7 @@ struct TLSE(Movable):
             val: A pointer to the key value to set.
             len: The length of the key value.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_certificate_set_key(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
@@ -599,7 +600,7 @@ struct TLSE(Movable):
             val: A pointer to the private key value to set.
             len: The length of the private key value.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_certificate_set_priv(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
@@ -623,7 +624,7 @@ struct TLSE(Movable):
             val: A pointer to the signing key value to set.
             len: The length of the signing key value.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_certificate_set_sign_key(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
@@ -649,7 +650,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the string representation of the TLS certificate.
 
-        #### C Function
+        #### C Function:
         ```c
         char *tls_certificate_to_string(struct TLSCertificate *cert, char *buffer, int len);
         ```
@@ -673,7 +674,7 @@ struct TLSE(Movable):
             val: A pointer to the exponent value to set.
             len: The length of the exponent value.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_certificate_set_exponent(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
@@ -697,7 +698,7 @@ struct TLSE(Movable):
             val: A pointer to the serial number value to set.
             len: The length of the serial number value.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_certificate_set_serial(struct TLSCertificate *cert, const unsigned char *val, int len);
         ```
@@ -721,7 +722,7 @@ struct TLSE(Movable):
             val: A pointer to the value associated with the algorithm.
             len: The length of the value.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_certificate_set_algorithm(struct TLSContext *context, unsigned int *algorithm, const unsigned char *val, int len);
         ```
@@ -737,7 +738,7 @@ struct TLSE(Movable):
         Args:
             cert: A pointer to the TLS certificate to destroy.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_destroy_certificate(struct TLSCertificate *cert);
         ```
@@ -762,7 +763,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket`.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_create_packet(struct TLSContext *context, unsigned char type, unsigned short version, int payload_size_hint);
         ```
@@ -778,7 +779,7 @@ struct TLSE(Movable):
         Args:
             packet: A pointer to the `TLSPacket` to destroy.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_destroy_packet(struct TLSPacket *packet);
         ```
@@ -793,7 +794,7 @@ struct TLSE(Movable):
         Args:
             packet: A pointer to the `TLSPacket` to update.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_packet_update(struct TLSPacket *packet);
         ```
@@ -817,7 +818,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_packet_append(struct TLSPacket *packet, const unsigned char *buf, unsigned int len);
         ```
@@ -838,7 +839,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_packet_uint8(struct TLSPacket *packet, unsigned char i);
         ```
@@ -857,7 +858,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_packet_uint16(struct TLSPacket *packet, unsigned short i);
         ```
@@ -877,7 +878,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_packet_uint32(struct TLSPacket *packet, unsigned int i);
         ```
@@ -895,7 +896,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_packet_uint24(struct TLSPacket *packet, unsigned int i);
         ```
@@ -914,7 +915,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_random(unsigned char *key, int len);
         ```
@@ -938,7 +939,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the `ECCCurveParameters` that were set.
 
-        #### C Function
+        #### C Function:
         ```c
         const struct ECCCurveParameters *tls_set_curve(struct TLSContext *context, const struct ECCCurveParameters *curve);
         ```
@@ -966,7 +967,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_set_default_dhe_pg(struct TLSContext *context, const char *p_hex_str, const char *g_hex_str);
         ```
@@ -995,7 +996,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_cipher_supported(struct TLSContext *context, unsigned short cipher);
         ```
@@ -1015,7 +1016,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating whether the cipher is forward-secure (1) or not (0), or a negative value for an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_cipher_is_fs(struct TLSContext *context, unsigned short cipher);
         ```
@@ -1034,7 +1035,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating whether the cipher is ephemeral (1) or not (0), or a negative value for an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_cipher_is_ephemeral(struct TLSContext *context);
         ```
@@ -1050,7 +1051,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to a string containing the name of the cipher used in the TLS context.
 
-        #### C Function
+        #### C Function:
         ```c
         const char *tls_cipher_name(struct TLSContext *context);
         ```
@@ -1070,7 +1071,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating whether ECDSA is used (1) or not (0), or a negative value for an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_is_ecdsa(struct TLSContext *context);
         ```
@@ -1089,7 +1090,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the client key exchange data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_client_key_exchange(struct TLSContext *context);
         ```
@@ -1112,7 +1113,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the server key exchange data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_server_key_exchange(struct TLSContext *context, int method);
         ```
@@ -1133,7 +1134,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the hello data.
         
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrade);
         ```
@@ -1153,7 +1154,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the certificate request data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_certificate_request(struct TLSContext *context);
         ```
@@ -1173,7 +1174,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the verify request data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_verify_request(struct TLSContext *context);
         ```
@@ -1204,7 +1205,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_hello(struct TLSContext *context, const unsigned char *buf, int buf_len, unsigned int *write_packets, unsigned int *dtls_verified);
         ```
@@ -1235,7 +1236,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_certificate(struct TLSContext *context, const unsigned char *buf, int buf_len, int is_client);
         ```
@@ -1259,7 +1260,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_server_key_exchange(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
@@ -1283,7 +1284,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_client_key_exchange(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
@@ -1307,7 +1308,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_server_hello_done(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
@@ -1336,7 +1337,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_finished(struct TLSContext *context, const unsigned char *buf, int buf_len, unsigned int *write_packets);
         ```
@@ -1363,7 +1364,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_verify(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
@@ -1392,7 +1393,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_payload(struct TLSContext *context, const unsigned char *buf, int buf_len, tls_validation_function certificate_verify);
         ```
@@ -1421,7 +1422,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_parse_message(struct TLSContext *context, unsigned char *buf, int buf_len, tls_validation_function certificate_verify);
         ```
@@ -1446,7 +1447,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_certificate_verify_signature(struct TLSCertificate *cert, struct TLSCertificate *parent);
         ```
@@ -1472,7 +1473,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_certificate_chain_is_valid(struct TLSContext *context, struct TLSCertificate **certificates, int len);
         ```
@@ -1498,7 +1499,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_certificate_chain_is_valid_root(struct TLSContext *context, struct TLSCertificate **certificates, int len);
         ```
@@ -1526,7 +1527,7 @@ struct TLSE(Movable):
             An integer indicating the number of certificates loaded (positive value), 0 if no certificates were found,
             or a negative value indicating an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_load_certificates(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
@@ -1554,7 +1555,7 @@ struct TLSE(Movable):
             An integer indicating success (1) if a private key was loaded, 0 if no private key was found,
             or a negative value indicating an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_load_private_key(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
@@ -1574,7 +1575,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the certificate data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_certificate(struct TLSContext *context);
         ```
@@ -1594,7 +1595,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the finished data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_finished(struct TLSContext *context);
         ```
@@ -1614,7 +1615,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the change cipher spec data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_change_cipher_spec(struct TLSContext *context);
         ```
@@ -1634,7 +1635,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the done data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_done(struct TLSContext *context);
         ```
@@ -1661,7 +1662,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the message data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_message(struct TLSContext *context, const unsigned char *data, unsigned int len);
         ```
@@ -1688,7 +1689,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSPacket` containing the alert data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSPacket *tls_build_alert(struct TLSContext *context, char critical, unsigned char code);
         ```
@@ -1705,7 +1706,7 @@ struct TLSE(Movable):
         Args:
             context: A pointer to the `TLSContext` in which the close notify packet will be built.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_close_notify(struct TLSContext *context);
         ```
@@ -1727,7 +1728,7 @@ struct TLSE(Movable):
             critical: A flag indicating whether the alert is critical (1) or not (0).
             code: The alert code to be sent.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_alert(struct TLSContext *context, unsigned char critical, int code);
         ```
@@ -1745,7 +1746,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the number of bytes pending in the TLS context. A value of 0 indicates no pending data.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_pending(struct TLSContext *context);
         ```
@@ -1770,7 +1771,7 @@ struct TLSE(Movable):
         Returns:
             The length of the exported data.
 
-        #### C Function
+        #### C Function:
         ```c
         unsigned int tls_export_context(struct TLSContext *context, unsigned char *buffer, unsigned int buf_len, unsigned char small_version);
         ```
@@ -1793,7 +1794,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSContext` containing the imported data.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSContext *tls_import_context(const unsigned char *buffer, unsigned int buf_len);
         ```
@@ -1811,7 +1812,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating whether the TLS connection is broken (1) or not (0). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_is_broken(struct TLSContext *context);
         ```
@@ -1827,7 +1828,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the result of the operation.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_request_client_certificate(struct TLSContext *context);
         ```
@@ -1845,7 +1846,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating whether the client certificate is verified (1) or not (0). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_client_verified(struct TLSContext *context);
         ```
@@ -1868,7 +1869,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the result of the operation.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_sni_nset(struct TLSContext *context, const char *sni, unsigned int len);
         ```
@@ -1886,7 +1887,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the result of the operation.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_srtp_set(struct TLSContext *context);
         ```
@@ -1907,7 +1908,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating the result of the operation.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_srtp_key(struct TLSContext *context, unsigned char *buffer);
         ```
@@ -1944,7 +1945,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_stun_parse(unsigned char *msg, int len, char *pwd, int pwd_len, unsigned char is_ipv6, unsigned char *addr, unsigned int port, unsigned char *response_buffer);
         ```
@@ -1986,7 +1987,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_stun_build(unsigned char transaction_id[12], char *username, int username_len, char *pwd, int pwd_len, unsigned char *msg);
         ```
@@ -2012,7 +2013,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating whether the message is a STUN message (1) or not (0). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_is_stun(const unsigned char *msg, int len);
         ```
@@ -2037,7 +2038,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSRTCPeerConnection` context.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSRTCPeerConnection *tls_peerconnection_context(unsigned char active, tls_validation_function certificate_verify, void *userdata);
         ```
@@ -2062,7 +2063,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the newly created `TLSRTCPeerConnection` context that is a duplicate of the original.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSRTCPeerConnection *tls_peerconnection_duplicate(struct TLSRTCPeerConnection *channel, void *userdata);
         ```
@@ -2084,7 +2085,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the `TLSContext` associated with the specified TLS RTCPeerConnection.
 
-        #### C Function
+        #### C Function:
         ```c
         struct TLSContext *tls_peerconnection_dtls_context(struct TLSRTCPeerConnection *channel);
         ```
@@ -2119,7 +2120,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_peerconnection_remote_credentials(struct TLSRTCPeerConnection *channel, char *remote_username, int remote_username_len, char *remote_pwd, int remote_pwd_len, char *remote_fingerprint, int remote_fingerprint_len);
         ```
@@ -2154,7 +2155,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the local password string used in the TLS RTCPeerConnection.
 
-        #### C Function
+        #### C Function:
         ```c
         const char *tls_peerconnection_local_pwd(struct TLSRTCPeerConnection *channel);
         ```
@@ -2173,7 +2174,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the local username string used in the TLS RTCPeerConnection.
 
-        #### C Function
+        #### C Function:
         ```c
         const char *tls_peerconnection_local_username(struct TLSRTCPeerConnection *channel);
         ```
@@ -2191,7 +2192,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the user-defined data associated with the specified TLS RTCPeerConnection.
 
-        #### C Function
+        #### C Function:
         ```c
         void *tls_peerconnection_userdata(struct TLSRTCPeerConnection *channel);
         ```
@@ -2222,7 +2223,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_peerconnection_load_keys(struct TLSRTCPeerConnection *channel, const unsigned char *pem_pub_key, int pem_pub_key_size, const unsigned char *pem_priv_key, int pem_priv_key_size);
         ```
@@ -2249,7 +2250,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_peerconnection_connect(struct TLSRTCPeerConnection *channel, tls_peerconnection_write_function write_function);
         ```
@@ -2286,7 +2287,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_peerconnection_iterate(struct TLSRTCPeerConnection *channel, unsigned char *buf, int buf_len, unsigned char *addr, int port, unsigned char is_ipv6, tls_peerconnection_write_function write_function, int *validate_addr);
         ```
@@ -2319,7 +2320,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_peerconnection_get_write_msg(struct TLSRTCPeerConnection *channel, unsigned char *buf);
         ```
@@ -2343,7 +2344,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_peerconnection_get_read_msg(struct TLSRTCPeerConnection *channel, unsigned char *buf);
         ```
@@ -2364,7 +2365,7 @@ struct TLSE(Movable):
             An integer indicating the status of the TLS RTCPeerConnection. A value of 0 indicates success, while
             other values may indicate different states or errors.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_peerconnection_status(struct TLSRTCPeerConnection *channel);
         ```
@@ -2381,7 +2382,7 @@ struct TLSE(Movable):
         Args:
             channel: A pointer to the `TLSRTCPeerConnection` context to destroy.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_destroy_peerconnection(struct TLSRTCPeerConnection *channel);
         ```
@@ -2409,7 +2410,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_cert_fingerprint(const char *pem_data, int len, char *buffer, unsigned int buf_len);
         ```
@@ -2436,7 +2437,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_load_root_certificates(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
@@ -2463,7 +2464,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_default_verify(struct TLSContext *context, struct TLSCertificate **certificate_chain, int len);
         ```
@@ -2478,7 +2479,7 @@ struct TLSE(Movable):
         Args:
             fname: A pointer to the filename where the certificate will be printed.
 
-        #### C Function
+        #### C Function:
         ```c
         void tls_print_certificate(const char *fname);
         ```
@@ -2497,7 +2498,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_add_alpn(struct TLSContext *context, const char *alpn);
         ```
@@ -2519,7 +2520,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating whether the ALPN identifier is present (1) or not (0). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_alpn_contains(struct TLSContext *context, const char *alpn, unsigned char alpn_size);
         ```
@@ -2537,7 +2538,7 @@ struct TLSE(Movable):
         Returns:
             A pointer to the ALPN identifier string associated with the TLS context.
 
-        #### C Function
+        #### C Function:
         ```c
         const char *tls_alpn(struct TLSContext *context);
         ```
@@ -2553,7 +2554,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_clear_certificates(struct TLSContext *context);
         ```
@@ -2570,7 +2571,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_make_ktls(struct TLSContext *context, int socket);
         ```
@@ -2589,7 +2590,7 @@ struct TLSE(Movable):
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_unmake_ktls(struct TLSContext *context, int socket);
         ```
@@ -2603,7 +2604,7 @@ struct TLSE(Movable):
         It is recommended to call this function from time to time, to protect against some
         DoS attacks.
         
-        #### C Function
+        #### C Function:
         ```c
         void dtls_reset_cookie_secret(void);
         ```
@@ -2622,7 +2623,7 @@ struct TLSE(Movable):
             An integer representing the remote error code. A value of 0 indicates no error, while
             other values indicate specific errors that occurred during the TLS operation.
 
-        #### C Function
+        #### C Function:
         ```c
         int tls_remote_error(struct TLSContext *context);
         ```

@@ -33,39 +33,39 @@ struct TLSResult:
     alias GENERIC_ERROR = Self(-1)
     """Generic error code for TLS operations."""
     alias BROKEN_PACKET = Self(-2)
-    """packet is broken or malformed."""
+    """Packet is broken or malformed."""
     alias NOT_UNDERSTOOD = Self(-3)
-    """operation is not understood by the TLS implementation."""
+    """Operation is not understood by the TLS implementation."""
     alias NOT_SAFE = Self(-4)
-    """operation is not safe to perform."""
+    """Operation is not safe to perform."""
     alias NO_COMMON_CIPHER = Self(-5)
     """Indicates that there is no common cipher suite between the client and server."""
     alias UNEXPECTED_MESSAGE = Self(-6)
     """Indicates that an unexpected message was received during the TLS handshake."""
     alias CLOSE_CONNECTION = Self(-7)
-    """connection should be closed."""
+    """Connection should be closed."""
     alias COMPRESSION_NOT_SUPPORTED = Self(-8)
     """Indicates that compression is not supported by the TLS implementation."""
     alias NO_MEMORY = Self(-9)
     """Indicates that there is not enough memory to complete the operation."""
     alias NOT_VERIFIED = Self(-10)
-    """certificate verification failed."""
+    """Certificate verification failed."""
     alias INTEGRITY_FAILED = Self(-11)
-    """integrity check of the data failed."""
+    """Integrity check of the data failed."""
     alias ERROR_ALERT = Self(-12)
     """Indicates that an error alert was received during the TLS handshake."""
     alias BROKEN_CONNECTION = Self(-13)
-    """connection is broken or has been closed unexpectedly."""
+    """Connection is broken or has been closed unexpectedly."""
     alias BAD_CERTIFICATE = Self(-14)
-    """certificate is invalid or not trusted."""
+    """Certificate is invalid or not trusted."""
     alias UNSUPPORTED_CERTIFICATE = Self(-15)
-    """certificate is not supported by the TLS implementation."""
+    """Certificate is not supported by the TLS implementation."""
     alias NO_RENEGOTIATION = Self(-16)
     """Indicates that renegotiation is not supported by the TLS implementation."""
     alias FEATURE_NOT_SUPPORTED = Self(-17)
-    """requested feature is not supported by the TLS implementation."""
+    """Requested feature is not supported by the TLS implementation."""
     alias DECRYPTION_FAILED = Self(-20)
-    """"Indicates that decryption of the data failed."""
+    """Indicates that decryption of the data failed."""
 
 
 # Useful for checking ciphersuites: https://ciphersuite.info/cs/

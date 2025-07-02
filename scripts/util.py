@@ -78,7 +78,7 @@ def generate_recipe() -> None:
     }
 
     # Populate package information
-    package_name = PROJECT_CONFIG["package"]["name"]
+    package_name = PROJECT_CONFIG["package"]["name"].
     recipe["package"]["name"] = package_name
     recipe["package"]["version"] = PROJECT_CONFIG["package"]["version"]
 
@@ -121,6 +121,7 @@ def publish(channel: str) -> None:
         except subprocess.CalledProcessError:
             pass
         os.remove(file)
+
 
 
 def remove_temp_directory() -> None:

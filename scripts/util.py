@@ -84,12 +84,13 @@ def generate_recipe() -> None:
 
     # Populate source files
     recipe["source"].append({"path": "src"})
+    recipe["source"].append({"path": "tlse"})
     recipe["source"].append({"path": PROJECT_CONFIG["workspace"]["license-file"]})
 
     # Populate build script
     recipe["build"]["script"].extend(
         [
-            "if [[ ! -d tlse/tlse ]]; then git clone --depth=1 git@github.com:eduardsui/tlse.git; fi",
+            "if [[ ! -d tlse ]]; then git clone --depth=1 git@github.com:eduardsui/tlse.git; fi",
             "cd tlse",
             "gcc -c tlse.c -fPIC -DTLS_AMALGAMATION",
             "if [[ $TARGET_PLATFORM == 'linux-64' ]]; then gcc -shared -o ${PREFIX}/lib/libtlse.dylib tlse.o; else gcc -dynamiclib -o ${PREFIX}/lib/libtlse.dylib tlse.o; fi",

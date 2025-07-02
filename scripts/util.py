@@ -78,7 +78,7 @@ def generate_recipe() -> None:
     }
 
     # Populate package information
-    package_name = PROJECT_CONFIG["package"]["name"].
+    package_name = PROJECT_CONFIG["package"]["name"].replace("-", "_")
     recipe["package"]["name"] = package_name
     recipe["package"]["version"] = PROJECT_CONFIG["package"]["version"]
 
@@ -87,8 +87,15 @@ def generate_recipe() -> None:
     recipe["source"].append({"path": PROJECT_CONFIG["workspace"]["license-file"]})
 
     # Populate build script
-    recipe["build"]["script"].append(
-        f"pixi run mojo package {package_name} -o ${{PREFIX}}/lib/mojo/{package_name}.mojopkg"
+    recipe["build"]["script"].extend(
+        [
+            "if [[ ! -d tlse ]]; then git clone --depth=1 git@github.com:eduardsui/tlse.git; fi",
+            "cd tlse",
+            "gcc -c tlse.c -fPIC -DTLS_AMALGAMATION",
+            "if [[ $TARGET_PLATFORM == 'linux-64' ]]; then gcc -shared -o ${PREFIX}/lib/libtlse.dylib tlse.o; else gcc -dynamiclib -o ${PREFIX}/lib/libtlse.dylib tlse.o; fi",
+            "cd .. && rm -R tlse",
+            f"pixi run mojo package {package_name} -o ${{PREFIX}}/lib/mojo/{package_name}.mojopkg",
+        ]
     )
 
     # Populate requirements
@@ -121,7 +128,6 @@ def publish(channel: str) -> None:
         except subprocess.CalledProcessError:
             pass
         os.remove(file)
-
 
 
 def remove_temp_directory() -> None:

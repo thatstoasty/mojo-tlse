@@ -8,6 +8,7 @@ from memory import UnsafePointer
 alias c_void = UInt8
 """C `void` type."""
 
+
 @fieldwise_init
 struct TLSContext:
     """Read only, the `TLSContext` struct is defined in C and is opaque to Mojo. A pointer to this is functionally an OpaquePointer.

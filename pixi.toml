@@ -10,7 +10,7 @@ homepage = "https://github.com/thatstoasty/mojo-tlse"
 repository = "https://github.com/thatstoasty/mojo-tlse"
 preview = ["pixi-build"]
 
-[tasks]
+[feature.util.tasks]
 tests = "python scripts/util.py run-tests"
 benchmarks = "python scripts/util.py run-benchmarks"
 examples = "python scripts/util.py run-examples"

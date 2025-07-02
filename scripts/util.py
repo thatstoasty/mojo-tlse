@@ -95,7 +95,7 @@ def generate_recipe() -> None:
             "gcc -c tlse.c -fPIC -DTLS_AMALGAMATION",
             "if [[ $TARGET_PLATFORM == 'linux-64' ]]; then gcc -shared -o ${PREFIX}/lib/libtlse.dylib tlse.o; else gcc -dynamiclib -o ${PREFIX}/lib/libtlse.dylib tlse.o; fi",
             "cd .. && rm -R tlse",
-            f"pixi run mojo package {package_name} -o ${{PREFIX}}/lib/mojo/{package_name.replace('-', '_')}.mojopkg",
+            f"pixi run mojo package {package_name.replace('-', '_')} -o ${{PREFIX}}/lib/mojo/{package_name.replace('-', '_')}.mojopkg",
         ]
     )
 

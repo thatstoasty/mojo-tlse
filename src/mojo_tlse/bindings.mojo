@@ -5,7 +5,6 @@ from sys.param_env import env_get_string
 from sys.ffi import OpaquePointer, c_char, c_uchar, c_int, c_uint, c_size_t, c_ushort
 from memory import UnsafePointer
 
-
 alias c_void = UInt8
 """C `void` type."""
 

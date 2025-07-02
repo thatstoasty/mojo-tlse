@@ -2,7 +2,7 @@
 description = "Mojo TLSE Bindings."
 authors = ["Mikhail Tavarez <miktavarez@gmail.com>"]
 channels = ["https://repo.prefix.dev/mojo-community", "conda-forge", "https://conda.modular.com/max", "https://prefix.dev/pixi-build-backends"]
-platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
+platforms = ["osx-arm64", "linux-64"]
 license = "MIT"
 license-file = "LICENSE"
 readme = "README.md"
@@ -23,7 +23,7 @@ max = ">=25.4.0,<25.5.0"
 
 [package]
 name = "mojo-tlse"
-version = "25.4.0"
+version = "25.4.1"
 
 [package.build]
 backend = { name = "pixi-build-rattler-build", version = "*" }

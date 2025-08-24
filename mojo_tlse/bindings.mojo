@@ -266,7 +266,7 @@ struct TLSE(ExplicitlyCopyable, Movable):
         presented a certificate and certificate_verify is not NULL, it will be called.
 
         Returns 0 if there's no data ready yet, a negative value (see
-        TLS_GENERIC_ERROR etc.) for an error, or a positive value (the number of bytes
+        `TLS_GENERIC_ERROR` etc.) for an error, or a positive value (the number of bytes
         used from buf) if one or more complete TLS messages were received. The data
         is copied into an internal buffer even if not all of it was consumed,
         so you should not re-send it the next time.

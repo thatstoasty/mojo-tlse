@@ -33,7 +33,8 @@ jobs:
           repository: eduardsui/tlse
           # We don't NEED to nest the repo, but it helps for keeping the local build and workflow builds the same.
           # For the sake of the workflow, it can just be `tlse`.
-          path: tlse/tlse
+          path: tlse
+          fetch-depth: 1
 
       - uses: prefix-dev/setup-pixi@v0.8.10
         with:

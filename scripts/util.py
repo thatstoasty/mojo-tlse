@@ -83,8 +83,7 @@ def generate_recipe() -> None:
     recipe["package"]["version"] = PROJECT_CONFIG["package"]["version"]
 
     # Populate source files
-    recipe["source"].append({"path": "src"})
-    recipe["source"].append({"path": "tlse"})
+    recipe["source"].append({"path": "."})
     recipe["source"].append({"path": PROJECT_CONFIG["workspace"]["license-file"]})
 
     # Populate build script

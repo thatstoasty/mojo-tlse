@@ -23,6 +23,8 @@ fn _get_global_tlse_itf() -> _TLSEInterfaceImpl:
 
 
 struct _TLSEInterfaceImpl:
+    """TLSE Global Wrapper."""
+
     var _tlse: UnsafePointer[TLSE]
 
     fn __init__(out self, sqlite: UnsafePointer[TLSE]):

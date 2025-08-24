@@ -22,7 +22,7 @@ fn _get_global_tlse_itf() -> _TLSEInterfaceImpl:
     return _TLSEInterfaceImpl(ptr.bitcast[TLSE]())
 
 
-struct _TLSEInterfaceImpl:
+struct _TLSEInterfaceImpl(Copyable):
     """TLSE Global Wrapper."""
 
     var _tlse: UnsafePointer[TLSE]

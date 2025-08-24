@@ -89,7 +89,7 @@ def generate_recipe() -> None:
     # Populate build script
     recipe["build"]["script"].extend(
         [
-            "if [[ -d tlse ]]; rm -R tlse; fi",
+            "if [[ -d tlse ]]; then rm -R tlse; fi",
             "git clone --depth=1 git@github.com:eduardsui/tlse.git",
             "cd tlse",
             "gcc -c tlse.c -fPIC -DTLS_AMALGAMATION",

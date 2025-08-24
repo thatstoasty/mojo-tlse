@@ -273,7 +273,7 @@ struct TLSE(ExplicitlyCopyable, Movable):
 
         Decrypted data, if any, should be read back with tls_read(). Can change the
         status of tls_established(). If the library has anything to send back on the
-        socket (e.g. as part of the handshake), tls_get_write_buffer() will return
+        socket (e.g. as part of the handshake), `tls_get_write_buffer()` will return
         non-NULL.
 
         Args:

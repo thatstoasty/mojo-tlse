@@ -32,7 +32,7 @@ class TemporaryBuildDirectory:
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
         package = PROJECT_CONFIG["package"]["name"]
         subprocess.run(
-            ["mojo", "package", f"src/{package}", "-o", f"{TEMP_DIR}/{package}.mojopkg"],
+            ["mojo", "package", f"{package}", "-o", f"{TEMP_DIR}/{package}.mojopkg"],
             check=True,
         )
         return TEMP_DIR
@@ -144,7 +144,7 @@ def prepare_temp_directory() -> None:
     TEMP_DIR.mkdir()
     package = PROJECT_CONFIG["package"]["name"]
     subprocess.run(
-        ["mojo", "package", f"src/{package}", "-o", f"{TEMP_DIR}/{package}.mojopkg"],
+        ["mojo", "package", f"{package}", "-o", f"{TEMP_DIR}/{package}.mojopkg"],
         check=True,
     )
 
@@ -152,7 +152,7 @@ def prepare_temp_directory() -> None:
 @app.command()
 def run_tests(path: str | None = None) -> None:
     """Executes the tests for the package."""
-    TEST_DIR = Path("src/test")
+    TEST_DIR = Path("test")
 
     print("Building package and copying tests.")
     with TemporaryBuildDirectory() as temp_directory:

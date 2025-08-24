@@ -1,11 +1,14 @@
 import os
 import pathlib
+from os import abort
 from sys import ffi
+from sys.ffi import c_char, c_int, c_size_t, c_uchar, c_uint, c_ushort
 from sys.param_env import env_get_string
-from sys.ffi import OpaquePointer, c_char, c_uchar, c_int, c_uint, c_size_t, c_ushort
-from memory import UnsafePointer
 
-alias c_void = UInt8
+from memory import OpaquePointer, UnsafePointer
+
+
+alias c_void = NoneType
 """C `void` type."""
 
 
@@ -15,6 +18,7 @@ struct TLSContext:
 
     Pointers to `TLSContext` should **NEVER** be dereferenced.
     """
+
     pass
 
 
@@ -62,20 +66,19 @@ alias TLSPeerConnectionWriteFn = fn (UnsafePointer[TLSRTCPeerConnection], Unsafe
 
 
 @fieldwise_init
-struct TLSE(Movable):
+struct TLSE(ExplicitlyCopyable, Movable):
+    """Wrapper around the TLSE library."""
+
     var _handle: ffi.DLHandle
     """The handle to the TLSE library, used for dynamic linking."""
 
-    fn __init__(out self) raises:
-        """"Initialize the TLSE Wrapper.
+    fn __init__(out self):
+        """Initialize the TLSE Wrapper.
 
         This will attempt to load the TLSE library from the path specified by the `TLSE_LIB_PATH` environment variable
         or compilation parameter.
 
         If the path is not set, it will default to `.pixi/envs/default/lib/libtlse.dylib` relative to the current working directory.
-
-        Raises:
-            Error: If the TLSE library cannot be found at the specified path.
         """
         var path = String(env_get_string["TLSE_LIB_PATH", ""]())
 
@@ -83,17 +86,30 @@ struct TLSE(Movable):
         if path == "":
             path = os.getenv("TLSE_LIB_PATH")
 
-        # If its not explicitly set, then assume the program is running from the root of the project.
-        if path == "":
-            path = String(pathlib.cwd() / ".pixi/envs/default/lib/libtlse.dylib")
-        
-        if not pathlib.Path(path).exists():
-            raise Error(
-                "The path to the TLSE library is not set. Set the path as either a compilation variable with `-D TLSE_LIB_PATH=/path/to/libtlse.dylib`"
-                " or environment variable with `TLSE_LIB_PATH=/path/to/libtlse.dylib`. Please set the TLSE_LIB_PATH environment variable to the path of the TLSE library."
-                " The default path is `.pixi/envs/default/lib/libtlse.dylib`, but this error indicates that the dylib did not exist at that location."
-            )
-        self._handle = ffi.DLHandle(path, ffi.RTLD.LAZY)
+        try:
+            # If its not explicitly set, then assume the program is running from the root of the project.
+            if path == "":
+                path = String(pathlib.cwd() / ".pixi/envs/default/lib/libtlse.dylib")
+
+            if not pathlib.Path(path).exists():
+                abort(
+                    "The path to the TLSE library is not set. Set the path as either a compilation variable with `-D"
+                    " TLSE_LIB_PATH=/path/to/libtlse.dylib` or environment variable with"
+                    " `TLSE_LIB_PATH=/path/to/libtlse.dylib`. Please set the TLSE_LIB_PATH environment variable to the"
+                    " path of the TLSE library. The default path is `.pixi/envs/default/lib/libtlse.dylib`, but this"
+                    " error indicates that the dylib did not exist at that location."
+                )
+            self._handle = ffi.DLHandle(path, ffi.RTLD.LAZY)
+        except e:
+            self._handle = abort[ffi.DLHandle](String("Failed to load the TLSE library: ", e))
+
+    fn copy(self) -> Self:
+        """Create a copy of the TLSE wrapper.
+
+        Returns:
+            A copy of the TLSE wrapper.
+        """
+        return Self(self._handle)
 
     fn tls_create_context(
         self,
@@ -106,13 +122,17 @@ struct TLSE(Movable):
             is_server: 1 if the context is for a server, 0 if for a client.
             version: The TLS version to use (e.g., TLSv1.2, TLSv1.3).
 
+        Returns:
+            A pointer to the newly created TLS context, or NULL on failure.
+
         #### C Function:
         ```c
         struct TLSContext *tls_create_context(unsigned char is_server, unsigned short version);
         ```
         """
-        var f = self._handle.get_function[fn (c_uchar, c_ushort) -> UnsafePointer[TLSContext]]("tls_create_context")
-        return f(is_server, version)
+        return self._handle.get_function[fn (c_uchar, c_ushort) -> UnsafePointer[TLSContext]]("tls_create_context")(
+            is_server, version
+        )
 
     fn tls_make_exportable(
         self,
@@ -143,13 +163,13 @@ struct TLSE(Movable):
         sni: UnsafePointer[c_char, mut=False],
     ) -> c_int:
         """Set the Server Name Indication (SNI) for the TLS context.
-        
+
         This is used to indicate the hostname being connected to.
 
         Args:
             context: The TLS context to modify.
             sni: The server name indication string (hostname).
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
@@ -158,9 +178,9 @@ struct TLSE(Movable):
         int tls_sni_set(struct TLSContext *context, const char *sni);
         ```
         """
-        return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[c_char, mut=False]) -> c_int
-        ]("tls_sni_set")(context, sni)
+        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_char, mut=False]) -> c_int](
+            "tls_sni_set"
+        )(context, sni)
 
     fn tls_client_connect(
         self,
@@ -170,7 +190,7 @@ struct TLSE(Movable):
 
         Args:
             context: The TLS context to use for the connection.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
@@ -192,7 +212,7 @@ struct TLSE(Movable):
         Args:
             context: The TLS context to retrieve the write buffer from.
             outlen: A pointer to an unsigned integer that will receive the length of the buffer.
-        
+
         Returns:
             A pointer to the write buffer containing encrypted data, or NULL if there's no data to write.
 
@@ -221,6 +241,9 @@ struct TLSE(Movable):
 
     fn tls_established(self, context: UnsafePointer[TLSContext]) -> c_int:
         """Check if the TLS handshake has been completed.
+
+        Args:
+            context: The TLS context to check.
 
         Returns:
             1 for established, 0 for not established yet, and -1 for a critical error.
@@ -258,7 +281,7 @@ struct TLSE(Movable):
             buf: A pointer to the buffer containing the data to consume.
             buf_len: The length of the buffer.
             certificate_verify: A function pointer for certificate validation, or NULL if not needed.
-        
+
         Returns:
             An integer indicating the number of bytes consumed from the buffer, or a negative value for an error.
 
@@ -286,7 +309,7 @@ struct TLSE(Movable):
             context: The TLS context to read from.
             buf: A pointer to the buffer where the read data will be stored.
             size: The maximum number of bytes to read into the buffer.
-        
+
         Returns:
             An integer indicating the number of bytes read, or a negative value for an error.
 
@@ -312,7 +335,7 @@ struct TLSE(Movable):
             context: The TLS context to write to.
             data: A pointer to the data to write.
             len: The length of the data to write.
-        
+
         Returns:
             An integer indicating the number of bytes written, or a negative value for an error.
 
@@ -321,9 +344,9 @@ struct TLSE(Movable):
         int tls_write(struct TLSContext *context, const unsigned char *data, unsigned int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_uint) -> c_int](
-            "tls_write"
-        )(context, data, len)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_uint) -> c_int
+        ]("tls_write")(context, data, len)
 
     fn tls_certificate_is_valid(self, cert: UnsafePointer[TLSCertificate]) -> c_int:
         """Check if the given TLS certificate is valid.
@@ -351,7 +374,7 @@ struct TLSE(Movable):
         Args:
             certificates: A pointer to an array of pointers to `TLSCertificate` objects.
             len: The number of certificates in the chain.
-        
+
         Returns:
             1 if the certificate chain is valid, 0 if it is not, and -1 for a critical error.
 
@@ -374,7 +397,7 @@ struct TLSE(Movable):
         Args:
             cert: A pointer to the `TLSCertificate` to validate.
             subject: A pointer to the subject string to check against the certificate's subject.
-        
+
         Returns:
             1 if the subject matches, 0 if it does not, and -1 for a critical error.
 
@@ -392,7 +415,7 @@ struct TLSE(Movable):
 
         Args:
             context: The TLS context to retrieve the SNI from.
-        
+
         Returns:
             A pointer to the SNI string, or NULL if no SNI is set.
 
@@ -420,7 +443,7 @@ struct TLSE(Movable):
             buf: A pointer to the buffer containing the client's cipher preferences.
             buf_len: The length of the buffer.
             scsv_set: A pointer to an integer that will be set if a SCSV (Signaling Cipher Suite Value) is used.
-        
+
         Returns:
             An integer indicating the chosen cipher suite, or a negative value for an error.
 
@@ -435,7 +458,7 @@ struct TLSE(Movable):
 
     fn tls_init(self):
         """Global initialization.
-        
+
         Optional, as it will be called automatically;
         The initialization is not thread-safe, so if you intend to use TLSe
         from multiple threads, you'll need to call `tls_init()` once, from a single thread,
@@ -462,10 +485,10 @@ struct TLSE(Movable):
             input_length: The length of the input data.
             cert_index: The index of the certificate to decode (0 for the first certificate).
             output_len: A pointer to an unsigned integer that will receive the length of the output data.
-        
+
         Returns:
             A pointer to the decoded data. The caller is responsible for freeing this memory.
-        
+
         #### C Function:
         ```c
         unsigned char *tls_pem_decode(const unsigned char *data_in, unsigned int input_length, int cert_index, unsigned int *output_len);
@@ -501,7 +524,7 @@ struct TLSE(Movable):
         Args:
             cert_subject: A pointer to the certificate's subject name.
             subject: A pointer to the subject name to check against the certificate's subject.
-        
+
         Returns:
             1 if the subject name matches, 0 if it does not, and -1 for a critical error.
 
@@ -510,9 +533,9 @@ struct TLSE(Movable):
         int tls_certificate_valid_subject_name(const unsigned char *cert_subject, const char *subject);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[c_uchar, mut=False], UnsafePointer[c_char, mut=False]) -> c_int](
-            "tls_certificate_valid_subject_name"
-        )(cert_subject, subject)
+        return self._handle.get_function[
+            fn (UnsafePointer[c_uchar, mut=False], UnsafePointer[c_char, mut=False]) -> c_int
+        ]("tls_certificate_valid_subject_name")(cert_subject, subject)
 
     fn tls_certificate_set_copy(
         self,
@@ -535,9 +558,9 @@ struct TLSE(Movable):
         void tls_certificate_set_copy(unsigned char **member, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[UnsafePointer[c_uchar]], UnsafePointer[c_uchar, mut=False], c_int)](
-            "tls_certificate_set_copy"
-        )(member, val, len)
+        return self._handle.get_function[
+            fn (UnsafePointer[UnsafePointer[c_uchar]], UnsafePointer[c_uchar, mut=False], c_int)
+        ]("tls_certificate_set_copy")(member, val, len)
 
     fn tls_certificate_set_copy_date(
         self,
@@ -559,9 +582,9 @@ struct TLSE(Movable):
         void tls_certificate_set_copy_date(unsigned char **member, const unsigned char *val, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[UnsafePointer[c_uchar]], UnsafePointer[c_uchar, mut=False], c_int)](
-            "tls_certificate_set_copy_date"
-        )(member, val, len)
+        return self._handle.get_function[
+            fn (UnsafePointer[UnsafePointer[c_uchar]], UnsafePointer[c_uchar, mut=False], c_int)
+        ]("tls_certificate_set_copy_date")(member, val, len)
 
     fn tls_certificate_set_key(
         self,
@@ -647,7 +670,7 @@ struct TLSE(Movable):
             cert: A pointer to the TLS certificate structure.
             buffer: A pointer to a buffer where the string representation will be stored.
             len: The length of the buffer.
-        
+
         Returns:
             A pointer to the string representation of the TLS certificate.
 
@@ -824,9 +847,9 @@ struct TLSE(Movable):
         int tls_packet_append(struct TLSPacket *packet, const unsigned char *buf, unsigned int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSPacket], UnsafePointer[c_uchar, mut=False], c_uint) -> c_int](
-            "tls_packet_append"
-        )(packet, buf, len)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSPacket], UnsafePointer[c_uchar, mut=False], c_uint) -> c_int
+        ]("tls_packet_append")(packet, buf, len)
 
     fn tls_packet_uint8(self, packet: UnsafePointer[TLSPacket], i: c_uchar) -> c_int:
         """Append an unsigned 8-bit integer to a TLS packet.
@@ -836,7 +859,7 @@ struct TLSE(Movable):
         Args:
             packet: A pointer to the `TLSPacket` to which the integer will be appended.
             i: The unsigned 8-bit integer to append.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
@@ -893,7 +916,7 @@ struct TLSE(Movable):
         Args:
             packet: A pointer to the `TLSPacket` to which the integer will be appended.
             i: The unsigned 24-bit integer to append.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero).
 
@@ -946,7 +969,9 @@ struct TLSE(Movable):
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSContext], UnsafePointer[ECCCurveParameters, mut=False]) -> UnsafePointer[ECCCurveParameters, mut=False]
+            fn (
+                UnsafePointer[TLSContext], UnsafePointer[ECCCurveParameters, mut=False]
+            ) -> UnsafePointer[ECCCurveParameters, mut=False]
         ]("tls_set_curve")(context, curve)
 
     fn tls_set_default_dhe_pg(
@@ -982,6 +1007,9 @@ struct TLSE(Movable):
 
         This function cleans up any resources used by the TLS library. It should be called when
         the TLS library is no longer needed, typically at the end of the program.
+
+        Args:
+            context: A pointer to the `TLSContext` to modify.
         """
         return self._handle.get_function[fn (UnsafePointer[TLSContext])]("tls_destroy_context")(context)
 
@@ -1013,7 +1041,7 @@ struct TLSE(Movable):
         Args:
             context: A pointer to the `TLSContext` to check.
             cipher: The cipher to check.
-        
+
         Returns:
             An integer indicating whether the cipher is forward-secure (1) or not (0), or a negative value for an error.
 
@@ -1048,7 +1076,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` to check.
-        
+
         Returns:
             A pointer to a string containing the name of the cipher used in the TLS context.
 
@@ -1057,9 +1085,9 @@ struct TLSE(Movable):
         const char *tls_cipher_name(struct TLSContext *context);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char, mut=False]]("tls_cipher_name")(
-            context
-        )
+        return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char, mut=False]](
+            "tls_cipher_name"
+        )(context)
 
     fn tls_is_ecdsa(self, context: UnsafePointer[TLSContext]) -> c_int:
         """Check if the TLS context is using ECDSA.
@@ -1068,7 +1096,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` to check.
-        
+
         Returns:
             An integer indicating whether ECDSA is used (1) or not (0), or a negative value for an error.
 
@@ -1087,7 +1115,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` in which the key exchange will be built.
-        
+
         Returns:
             A pointer to the newly created `TLSPacket` containing the client key exchange data.
 
@@ -1110,7 +1138,7 @@ struct TLSE(Movable):
         Args:
             context: A pointer to the `TLSContext` in which the key exchange will be built.
             method: An integer indicating the key exchange method to use (e.g., DHE, ECDHE).
-        
+
         Returns:
             A pointer to the newly created `TLSPacket` containing the server key exchange data.
 
@@ -1131,10 +1159,10 @@ struct TLSE(Movable):
         Args:
             context: A pointer to the `TLSContext` in which the hello packet will be built.
             tls13_downgrade: An integer indicating whether to downgrade to TLS 1.3 (1) or not (0).
-        
+
         Returns:
             A pointer to the newly created `TLSPacket` containing the hello data.
-        
+
         #### C Function:
         ```c
         struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrade);
@@ -1151,7 +1179,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` in which the certificate request will be built.
-        
+
         Returns:
             A pointer to the newly created `TLSPacket` containing the certificate request data.
 
@@ -1171,7 +1199,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` in which the verify request will be built.
-        
+
         Returns:
             A pointer to the newly created `TLSPacket` containing the verify request data.
 
@@ -1202,7 +1230,7 @@ struct TLSE(Movable):
             buf_len: The length of the buffer containing the hello packet data.
             write_packets: A pointer to an unsigned integer that will receive the number of packets written.
             dtls_verified: A pointer to an unsigned integer that will receive verification status for DTLS.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1213,7 +1241,11 @@ struct TLSE(Movable):
         """
         return self._handle.get_function[
             fn (
-                UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int, UnsafePointer[c_uint], UnsafePointer[c_uint]
+                UnsafePointer[TLSContext],
+                UnsafePointer[c_uchar, mut=False],
+                c_int,
+                UnsafePointer[c_uint],
+                UnsafePointer[c_uint],
             ) -> c_int
         ]("tls_parse_hello")(context, buf, buf_len, write_packets, dtls_verified)
 
@@ -1233,7 +1265,7 @@ struct TLSE(Movable):
             buf: A pointer to the buffer containing the certificate packet data.
             buf_len: The length of the buffer containing the certificate packet data.
             is_client: An integer indicating whether the certificate is from a client (1) or server (0).
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1242,9 +1274,9 @@ struct TLSE(Movable):
         int tls_parse_certificate(struct TLSContext *context, const unsigned char *buf, int buf_len, int is_client);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int, c_int) -> c_int](
-            "tls_parse_certificate"
-        )(context, buf, buf_len, is_client)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int, c_int) -> c_int
+        ]("tls_parse_certificate")(context, buf, buf_len, is_client)
 
     fn tls_parse_server_key_exchange(
         self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar, mut=False], buf_len: c_int
@@ -1257,7 +1289,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` in which the server key exchange packet will be parsed.
             buf: A pointer to the buffer containing the server key exchange packet data.
             buf_len: The length of the buffer containing the server key exchange packet data.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1266,9 +1298,9 @@ struct TLSE(Movable):
         int tls_parse_server_key_exchange(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
-            "tls_parse_server_key_exchange"
-        )(context, buf, buf_len)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int
+        ]("tls_parse_server_key_exchange")(context, buf, buf_len)
 
     fn tls_parse_client_key_exchange(
         self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar, mut=False], buf_len: c_int
@@ -1281,7 +1313,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` in which the client key exchange packet will be parsed.
             buf: A pointer to the buffer containing the client key exchange packet data.
             buf_len: The length of the buffer containing the client key exchange packet data.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1290,9 +1322,9 @@ struct TLSE(Movable):
         int tls_parse_client_key_exchange(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
-            "tls_parse_client_key_exchange"
-        )(context, buf, buf_len)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int
+        ]("tls_parse_client_key_exchange")(context, buf, buf_len)
 
     fn tls_parse_server_hello_done(
         self, context: UnsafePointer[TLSContext], buf: UnsafePointer[c_uchar, mut=False], buf_len: c_int
@@ -1305,7 +1337,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` in which the server hello done packet will be parsed.
             buf: A pointer to the buffer containing the server hello done packet data.
             buf_len: The length of the buffer containing the server hello done packet data.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1314,9 +1346,9 @@ struct TLSE(Movable):
         int tls_parse_server_hello_done(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
-            "tls_parse_server_hello_done"
-        )(context, buf, buf_len)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int
+        ]("tls_parse_server_hello_done")(context, buf, buf_len)
 
     fn tls_parse_finished(
         self,
@@ -1334,7 +1366,7 @@ struct TLSE(Movable):
             buf: A pointer to the buffer containing the finished packet data.
             buf_len: The length of the buffer containing the finished packet data.
             write_packets: A pointer to an unsigned integer that will receive the number of packets written.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1370,9 +1402,9 @@ struct TLSE(Movable):
         int tls_parse_verify(struct TLSContext *context, const unsigned char *buf, int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
-            "tls_parse_verify"
-        )(context, buf, buf_len)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int
+        ]("tls_parse_verify")(context, buf, buf_len)
 
     fn tls_parse_payload(
         self,
@@ -1390,7 +1422,7 @@ struct TLSE(Movable):
             buf: A pointer to the buffer containing the payload data.
             buf_len: The length of the buffer containing the payload data.
             certificate_verify: A function pointer for certificate validation.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1419,7 +1451,7 @@ struct TLSE(Movable):
             buf: A pointer to the buffer containing the message data.
             buf_len: The length of the buffer containing the message data.
             certificate_verify: A function pointer for certificate validation.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1496,7 +1528,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` in which the certificate chain will be validated.
             certificates: A pointer to an array of pointers to `TLSCertificate` objects representing the chain.
             len: The length of the certificate chain (number of certificates).
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates a critical error.
 
@@ -1523,7 +1555,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` to which the certificates will be added.
             pem_buffer: A pointer to the buffer containing the PEM-encoded certificates.
             pem_size: The size of the PEM buffer.
-        
+
         Returns:
             An integer indicating the number of certificates loaded (positive value), 0 if no certificates were found,
             or a negative value indicating an error.
@@ -1533,9 +1565,9 @@ struct TLSE(Movable):
         int tls_load_certificates(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
-            "tls_load_certificates"
-        )(context, pem_buffer, pem_size)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int
+        ]("tls_load_certificates")(context, pem_buffer, pem_size)
 
     fn tls_load_private_key(
         self,
@@ -1551,7 +1583,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` to which the private key will be added.
             pem_buffer: A pointer to the buffer containing the PEM-encoded private key.
             pem_size: The size of the PEM buffer.
-        
+
         Returns:
             An integer indicating success (1) if a private key was loaded, 0 if no private key was found,
             or a negative value indicating an error.
@@ -1561,9 +1593,9 @@ struct TLSE(Movable):
         int tls_load_private_key(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
-            "tls_load_private_key"
-        )(context, pem_buffer, pem_size)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int
+        ]("tls_load_private_key")(context, pem_buffer, pem_size)
 
     fn tls_build_certificate(self, context: UnsafePointer[TLSContext]) -> UnsafePointer[TLSPacket]:
         """Build a TLS Certificate packet.
@@ -1592,7 +1624,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` in which the finished packet will be built.
-        
+
         Returns:
             A pointer to the newly created `TLSPacket` containing the finished data.
 
@@ -1699,7 +1731,7 @@ struct TLSE(Movable):
             "tls_build_alert"
         )(context, critical, code)
 
-    fn tls_close_notify(self, context: UnsafePointer[TLSContext]) -> None:
+    fn tls_close_notify(self, context: UnsafePointer[TLSContext]):
         """Build a TLS Close Notify packet.
         Constructs a TLS Close Notify packet, which is used to indicate that the sender
         is closing the TLS connection.
@@ -1712,7 +1744,7 @@ struct TLSE(Movable):
         void tls_close_notify(struct TLSContext *context);
         ```
         """
-        _ = self._handle.get_function[fn (UnsafePointer[TLSContext]) -> c_void]("tls_close_notify")(context)
+        self._handle.get_function[fn (UnsafePointer[TLSContext]) -> c_void]("tls_close_notify")(context)
 
     fn tls_alert(
         self,
@@ -1734,7 +1766,7 @@ struct TLSE(Movable):
         void tls_alert(struct TLSContext *context, unsigned char critical, int code);
         ```
         """
-        _ = self._handle.get_function[fn (UnsafePointer[TLSContext], c_char, c_int) -> c_void]("tls_alert")(
+        self._handle.get_function[fn (UnsafePointer[TLSContext], c_char, c_int) -> c_void]("tls_alert")(
             context, critical, code
         )
 
@@ -1743,7 +1775,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` to check for pending data.
-        
+
         Returns:
             An integer indicating the number of bytes pending in the TLS context. A value of 0 indicates no pending data.
 
@@ -1809,7 +1841,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` to check for a broken connection.
-        
+
         Returns:
             An integer indicating whether the TLS connection is broken (1) or not (0). A negative value indicates an error.
 
@@ -1875,9 +1907,9 @@ struct TLSE(Movable):
         int tls_sni_nset(struct TLSContext *context, const char *sni, unsigned int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_char, mut=False], c_uint) -> c_int](
-            "tls_sni_nset"
-        )(context, sni, len)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_char, mut=False], c_uint) -> c_int
+        ]("tls_sni_nset")(context, sni, len)
 
     fn tls_srtp_set(self, context: UnsafePointer[TLSContext]) -> c_int:
         """Set DTLS-SRTP mode for DTLS context.
@@ -1942,7 +1974,7 @@ struct TLSE(Movable):
             addr: A pointer to the buffer to receive the address.
             port: The port number associated with the STUN message.
             response_buffer: A pointer to the buffer to receive the response.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
@@ -1984,7 +2016,7 @@ struct TLSE(Movable):
             pwd: A pointer to the password string.
             pwd_len: The length of the password string.
             msg: A pointer to the buffer to receive the constructed STUN message.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
@@ -2010,7 +2042,7 @@ struct TLSE(Movable):
         Args:
             msg: A pointer to the buffer containing the message to check.
             len: The length of the message buffer.
-        
+
         Returns:
             An integer indicating whether the message is a STUN message (1) or not (0). A negative value indicates an error.
 
@@ -2019,13 +2051,15 @@ struct TLSE(Movable):
         int tls_is_stun(const unsigned char *msg, int len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[c_uchar, mut=False], c_int) -> c_int]("tls_is_stun")(msg, len)
+        return self._handle.get_function[fn (UnsafePointer[c_uchar, mut=False], c_int) -> c_int]("tls_is_stun")(
+            msg, len
+        )
 
     fn tls_peerconnection_context(
         self,
         active: c_uchar,
         certificate_verify: TLSValidationFn,
-        userdata: UnsafePointer[c_void],
+        userdata: OpaquePointer,
     ) -> UnsafePointer[TLSRTCPeerConnection]:
         """Create a new TLS RTCPeerConnection context.
         This function initializes a new TLS RTCPeerConnection context, which is used for secure communication
@@ -2045,13 +2079,13 @@ struct TLSE(Movable):
         ```
         """
         return self._handle.get_function[
-            fn (c_uchar, TLSValidationFn, UnsafePointer[c_void]) -> UnsafePointer[TLSRTCPeerConnection]
+            fn (c_uchar, TLSValidationFn, OpaquePointer) -> UnsafePointer[TLSRTCPeerConnection]
         ]("tls_peerconnection_context")(active, certificate_verify, userdata)
 
     fn tls_peerconnection_duplicate(
         self,
         channel: UnsafePointer[TLSRTCPeerConnection],
-        userdata: UnsafePointer[c_void],
+        userdata: OpaquePointer,
     ) -> UnsafePointer[TLSRTCPeerConnection]:
         """Duplicate a TLS RTCPeerConnection context.
         This function creates a duplicate of an existing TLS RTCPeerConnection context, allowing for
@@ -2070,7 +2104,7 @@ struct TLSE(Movable):
         ```
         """
         return self._handle.get_function[
-            fn (UnsafePointer[TLSRTCPeerConnection], UnsafePointer[c_void]) -> UnsafePointer[TLSRTCPeerConnection]
+            fn (UnsafePointer[TLSRTCPeerConnection], OpaquePointer) -> UnsafePointer[TLSRTCPeerConnection]
         ]("tls_peerconnection_duplicate")(channel, userdata)
 
     fn tls_peerconnection_dtls_context(
@@ -2146,7 +2180,9 @@ struct TLSE(Movable):
             remote_fingerprint_len,
         )
 
-    fn tls_peerconnection_local_pwd(self, channel: UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char, mut=False]:
+    fn tls_peerconnection_local_pwd(
+        self, channel: UnsafePointer[TLSRTCPeerConnection]
+    ) -> UnsafePointer[c_char, mut=False]:
         """Documentation to come.
         This function retrieves the local password (PWD) used for authentication in a TLS RTCPeerConnection.
 
@@ -2165,13 +2201,15 @@ struct TLSE(Movable):
             "tls_peerconnection_local_pwd"
         )(channel)
 
-    fn tls_peerconnection_local_username(self, channel: UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_char, mut=False]:
+    fn tls_peerconnection_local_username(
+        self, channel: UnsafePointer[TLSRTCPeerConnection]
+    ) -> UnsafePointer[c_char, mut=False]:
         """Checks the local username of a TLS RTCPeerConnection.
         This function retrieves the local username used for authentication in a TLS RTCPeerConnection.
 
         Args:
             channel: A pointer to the `TLSRTCPeerConnection` context from which to retrieve the local username.
-        
+
         Returns:
             A pointer to the local username string used in the TLS RTCPeerConnection.
 
@@ -2184,7 +2222,7 @@ struct TLSE(Movable):
             "tls_peerconnection_local_username"
         )(channel)
 
-    fn tls_peerconnection_userdata(self, channel: UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_void]:
+    fn tls_peerconnection_userdata(self, channel: UnsafePointer[TLSRTCPeerConnection]) -> OpaquePointer:
         """Retrieve user-defined data associated with a TLS RTCPeerConnection.
 
         Args:
@@ -2198,7 +2236,7 @@ struct TLSE(Movable):
         void *tls_peerconnection_userdata(struct TLSRTCPeerConnection *channel);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSRTCPeerConnection]) -> UnsafePointer[c_void]](
+        return self._handle.get_function[fn (UnsafePointer[TLSRTCPeerConnection]) -> OpaquePointer](
             "tls_peerconnection_userdata"
         )(channel)
 
@@ -2220,7 +2258,7 @@ struct TLSE(Movable):
             pem_pub_key_size: The size of the PEM public key buffer.
             pem_priv_key: A pointer to the buffer containing the PEM-encoded private key.
             pem_priv_key_size: The size of the PEM private key buffer.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
@@ -2231,7 +2269,11 @@ struct TLSE(Movable):
         """
         return self._handle.get_function[
             fn (
-                UnsafePointer[TLSRTCPeerConnection], UnsafePointer[c_uchar, mut=False], c_int, UnsafePointer[c_uchar, mut=False], c_int
+                UnsafePointer[TLSRTCPeerConnection],
+                UnsafePointer[c_uchar, mut=False],
+                c_int,
+                UnsafePointer[c_uchar, mut=False],
+                c_int,
             ) -> c_int
         ]("tls_peerconnection_load_keys")(channel, pem_pub_key, pem_pub_key_size, pem_priv_key, pem_priv_key_size)
 
@@ -2317,7 +2359,7 @@ struct TLSE(Movable):
         Args:
             channel: A pointer to the `TLSRTCPeerConnection` context from which to retrieve the write message.
             buf: A pointer to the buffer to receive the write message.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
@@ -2388,7 +2430,7 @@ struct TLSE(Movable):
         void tls_destroy_peerconnection(struct TLSRTCPeerConnection *channel);
         ```
         """
-        _ = self._handle.get_function[fn (UnsafePointer[TLSRTCPeerConnection]) -> c_void]("tls_destroy_peerconnection")(
+        self._handle.get_function[fn (UnsafePointer[TLSRTCPeerConnection]) -> c_void]("tls_destroy_peerconnection")(
             channel
         )
 
@@ -2407,7 +2449,7 @@ struct TLSE(Movable):
             len: The length of the PEM data buffer.
             buffer: A pointer to the buffer where the fingerprint will be stored.
             buf_len: The length of the buffer for the fingerprint.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
@@ -2416,9 +2458,9 @@ struct TLSE(Movable):
         int tls_cert_fingerprint(const char *pem_data, int len, char *buffer, unsigned int buf_len);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[c_uchar, mut=False], c_int, UnsafePointer[c_char], c_uint) -> c_int](
-            "tls_cert_fingerprint"
-        )(pem_data, len, buffer, buf_len)
+        return self._handle.get_function[
+            fn (UnsafePointer[c_uchar, mut=False], c_int, UnsafePointer[c_char], c_uint) -> c_int
+        ]("tls_cert_fingerprint")(pem_data, len, buffer, buf_len)
 
     fn tls_load_root_certificates(
         self,
@@ -2434,7 +2476,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` in which the root certificates will be loaded.
             pem_buffer: A pointer to the buffer containing the PEM-encoded root certificates.
             pem_size: The size of the PEM buffer.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
@@ -2443,9 +2485,9 @@ struct TLSE(Movable):
         int tls_load_root_certificates(struct TLSContext *context, const unsigned char *pem_buffer, int pem_size);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int](
-            "tls_load_root_certificates"
-        )(context, pem_buffer, pem_size)
+        return self._handle.get_function[
+            fn (UnsafePointer[TLSContext], UnsafePointer[c_uchar, mut=False], c_int) -> c_int
+        ]("tls_load_root_certificates")(context, pem_buffer, pem_size)
 
     fn tls_default_verify(
         self,
@@ -2461,7 +2503,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` in which the verification will be performed.
             certificate_chain: A pointer to an array of pointers to `TLSCertificate` structures representing the certificate chain.
             len: The number of certificates in the chain.
-        
+
         Returns:
             An integer indicating success (0) or failure (non-zero). A negative value indicates an error.
 
@@ -2485,7 +2527,7 @@ struct TLSE(Movable):
         void tls_print_certificate(const char *fname);
         ```
         """
-        _ = self._handle.get_function[fn (UnsafePointer[c_char, mut=False]) -> c_void]("tls_print_certificate")(fname)
+        self._handle.get_function[fn (UnsafePointer[c_char, mut=False]) -> c_void]("tls_print_certificate")(fname)
 
     fn tls_add_alpn(self, context: UnsafePointer[TLSContext], alpn: UnsafePointer[c_char, mut=False]) -> c_int:
         """Add an ALPN (Application-Layer Protocol Negotiation) identifier to a TLS context.
@@ -2517,7 +2559,7 @@ struct TLSE(Movable):
             context: A pointer to the `TLSContext` to check for the ALPN identifier.
             alpn: A pointer to the ALPN identifier string.
             alpn_size: The size of the ALPN identifier string.
-        
+
         Returns:
             An integer indicating whether the ALPN identifier is present (1) or not (0). A negative value indicates an error.
 
@@ -2535,7 +2577,7 @@ struct TLSE(Movable):
 
         Args:
             context: A pointer to the `TLSContext` from which to retrieve the ALPN identifier.
-        
+
         Returns:
             A pointer to the ALPN identifier string associated with the TLS context.
 
@@ -2544,7 +2586,9 @@ struct TLSE(Movable):
         const char *tls_alpn(struct TLSContext *context);
         ```
         """
-        return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char, mut=False]]("tls_alpn")(context)
+        return self._handle.get_function[fn (UnsafePointer[TLSContext]) -> UnsafePointer[c_char, mut=False]](
+            "tls_alpn"
+        )(context)
 
     fn tls_clear_certificates(self, context: UnsafePointer[TLSContext]) -> c_int:
         """Clears all certificates from a TLS context.
@@ -2604,13 +2648,13 @@ struct TLSE(Movable):
         """Creates a new DTLS random cookie secret to be used in HelloVerifyRequest (server-side).
         It is recommended to call this function from time to time, to protect against some
         DoS attacks.
-        
+
         #### C Function:
         ```c
         void dtls_reset_cookie_secret(void);
         ```
         """
-        _ = self._handle.get_function[fn () -> c_void]("dtls_reset_cookie_secret")()
+        self._handle.get_function[fn () -> c_void]("dtls_reset_cookie_secret")()
 
     fn tls_remote_error(self, context: UnsafePointer[TLSContext]) -> c_int:
         """Retrieves the remote error code from a TLS context.
@@ -2619,7 +2663,7 @@ struct TLSE(Movable):
 
         Args:
             context: Wrapper around the TLSContext pointer.
-        
+
         Returns:
             An integer representing the remote error code. A value of 0 indicates no error, while
             other values indicate specific errors that occurred during the TLS operation.

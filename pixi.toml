@@ -18,12 +18,19 @@ template = "python scripts/util.py generate-recipe"
 build = { cmd = "python scripts/util.py build-conda-package" }
 publish = { cmd = "python scripts/util.py publish", env = { PREFIX_API_KEY = "$PREFIX_API_KEY" } }
 
+# Linting and Formatting
+lint_docs = "python3 scripts/check-docstrings.py"
+mojo_format = "mojo format mojo_tlse --line-length 120"
+sort_imports = "isort **/*.mojo -m 3 --line-length 120 --lines-after-imports 2 --trailing-comma"
+format = [{ task = "mojo_format" }, { task = "sort_imports" }]
+
 [dependencies]
-max = ">=25.4.0,<25.5.0"
+mojo = ">=25.5.0,<25.6.0"
+mojo-compiler = ">=25.5.0,<25.6.0"
 
 [package]
 name = "mojo-tlse"
-version = "25.4.1"
+version = "25.5.0"
 
 [package.build]
 backend = { name = "pixi-build-rattler-build", version = "*" }
@@ -31,6 +38,7 @@ backend = { name = "pixi-build-rattler-build", version = "*" }
 [feature.util.dependencies]
 typer = ">=0.16.0,<0.17"
 pyyaml = ">=6.0.2,<7"
+isort = ">=6.0.1,<7"
 
 [environments]
 default = { solve-group = "default" }

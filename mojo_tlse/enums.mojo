@@ -2,6 +2,7 @@
 @register_passable("trivial")
 struct TLSVersions:
     """TLS protocol versions for secure communication."""
+
     var value: UInt16
     """Value of the TLS version."""
     alias SSL_V30 = Self(0x0300)
@@ -26,6 +27,7 @@ struct TLSVersions:
 @register_passable("trivial")
 struct TLSResult:
     """Result codes for TLS operations."""
+
     var value: Int32
     """Value of the TLS result."""
     alias NEED_MORE_DATA = Self(0)
@@ -234,6 +236,7 @@ alias TLS_FALLBACK_SCSV = 0x5600
 @register_passable("trivial")
 struct Result:
     """Result Enum."""
+
     var value: Int32
     """Value of the result."""
     alias CLOSE_NOTIFY = Self(0)

@@ -1,9 +1,9 @@
 from lightbug_http.address import TCPAddr
-from lightbug_http.socket import Socket
 from lightbug_http.connection import create_connection
-from mojo_tlse.bindings import c_int, c_char, c_uchar, TLSContext, TLSCertificate, TLSE
+from lightbug_http.socket import Socket
+from memory import Span, UnsafePointer
+from mojo_tlse.bindings import TLSE, TLSCertificate, TLSContext, c_char, c_int, c_uchar
 from mojo_tlse.enums import Result
-from memory import UnsafePointer, Span
 
 
 fn validate_certificate(
@@ -44,12 +44,12 @@ fn validate_certificate(
 
 fn send_pending(tlse: TLSE, socket: Socket, context: UnsafePointer[TLSContext]) raises -> Int:
     var out_buffer_len: UInt32 = 0
-    var out_buffer = tlse.tls_get_write_buffer(context, UnsafePointer.address_of(out_buffer_len))
+    var out_buffer = tlse.tls_get_write_buffer(context, UnsafePointer(to=out_buffer_len))
     var out_buffer_index: UInt32 = 0
     var send_res = 0
     while out_buffer and out_buffer_len > 0:
         var len: UInt = Int(out_buffer_len)
-        var msg = Span[Byte, origin = __origin_of(out_buffer)](ptr=out_buffer, length=len)
+        var msg = Span[Byte, __origin_of(out_buffer)](ptr=out_buffer, length=len)
 
         var res = socket.send(buffer=msg)
         if res <= 0:
